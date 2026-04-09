@@ -4,8 +4,7 @@ import { format } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { registerVietnameseFonts } from '../utils/pdfFonts';
-
-const API = 'http://localhost:5000/api';
+import { API } from '../api';
 const getToken = () => localStorage.getItem('token');
 const authFetch = (url, opts = {}) => fetch(url, {
   ...opts, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}`, ...opts.headers }
@@ -205,7 +204,12 @@ export default function BookingsView({ vehicles, drivers, user }) {
           'Số Km\nxe\nchạy', 
           'Chi phí\ngửi xe (đ)'
         ]],
-        body: [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']],
+        body: [
+          ['', '', '', '', ''], 
+          ['', '', '', '', ''], 
+          ['', '', '', '', ''], 
+          ['', '', '', '', '']
+        ],
         theme: 'grid',
         headStyles: { 
           fillColor: [255, 255, 255], 
@@ -224,7 +228,12 @@ export default function BookingsView({ vehicles, drivers, user }) {
           halign: 'center',
           valign: 'middle'
         },
-        foot: [[{ content: 'Tổng km Lịch trình xe chạy', colSpan: 3, styles: { halign: 'center', fontStyle: 'bold' } }, '', '']],
+        // Sửa lại foot để tránh lỗi widths
+        foot: [[
+          { content: 'Tổng km Lịch trình xe chạy', colSpan: 3, styles: { halign: 'center', fontStyle: 'bold' } }, 
+          { content: '', colSpan: 1 }, 
+          { content: '', colSpan: 1 }
+        ]],
         footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.1 }
       });
 

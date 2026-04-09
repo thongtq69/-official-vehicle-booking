@@ -84,14 +84,14 @@ export default function ReportView({ vehicles }) {
 
       const cols = ['TT', 'Biển KS', 'Lái xe', 'Chỉ số đầu', 'Chỉ số cuối', 'Tổng (km)', 'Giờ cẩu', 'Ghi chú'];
       const rows = displayData.map(d => [
-        d.id, 
-        d.plate, 
-        d.driver,
-        d.startKm ? d.startKm.toLocaleString() : '0',
-        d.endKm ? d.endKm.toLocaleString() : '0',
-        d.totalKm ? d.totalKm.toLocaleString() : '0',
-        d.craneHours ? d.craneHours + 'h' : '',
-        d.note
+        String(d.id || ''), 
+        String(d.plate || ''), 
+        String(d.driver || ''),
+        String(d.startKm || '0'),
+        String(d.endKm || '0'),
+        String(d.totalKm || '0'),
+        String(d.craneHours || '0'),
+        String(d.note || '')
       ]);
 
       autoTable(doc, {
