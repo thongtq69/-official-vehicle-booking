@@ -441,24 +441,24 @@ export default function BookingsView({ vehicles, drivers, user }) {
 
       {/* Create Modal */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
           <div className="glass" style={{ width: '100%', maxWidth: '550px', padding: '28px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Tạo Lệnh Điều Xe</h2>
               <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div className="form-grid">
                 <div><label style={labelStyle}>Người / Đơn vị yêu cầu *</label><input required style={inputStyle} value={formData.requestor} onChange={e => setFormData({...formData, requestor: e.target.value})} /></div>
                 <div><label style={labelStyle}>Phòng ban</label><input style={inputStyle} value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} placeholder="P4, P11, BGĐ..." /></div>
               </div>
               <div><label style={labelStyle}>Nơi đến *</label><input required style={inputStyle} value={formData.destination} onChange={e => setFormData({...formData, destination: e.target.value})} /></div>
               <div><label style={labelStyle}>Nội dung / Mục đích *</label><input required style={inputStyle} value={formData.purpose} onChange={e => setFormData({...formData, purpose: e.target.value})} /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div className="form-grid">
                 <div><label style={labelStyle}>Thời gian đi *</label><input required type="datetime-local" style={inputStyle} value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} /></div>
                 <div><label style={labelStyle}>Thời gian về *</label><input required type="datetime-local" style={inputStyle} value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} /></div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div className="form-grid">
                 <div><label style={labelStyle}>Thời lượng</label><input style={inputStyle} value={formData.duration} onChange={e => setFormData({...formData, duration: e.target.value})} placeholder="1 Ngày, 0.5 Ngày..." /></div>
                 <div><label style={labelStyle}>Yêu cầu xe</label><input style={inputStyle} value={formData.vehicleRequest} onChange={e => setFormData({...formData, vehicleRequest: e.target.value})} placeholder="4 chỗ, 16 chỗ, BKS..." /></div>
               </div>

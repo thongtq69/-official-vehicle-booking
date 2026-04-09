@@ -10,8 +10,8 @@
   --text-main: #f8fafc;
   --text-dim: #94a3b8;
   --border: rgba(255, 255, 255, 0.1);
-  --glass: rgba(30, 41, 59, 0.7);
-  --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass: rgba(15, 23, 42, 0.9);
+  --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
 }
 
 * {
@@ -138,6 +138,12 @@ body {
   gap: 24px;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
 @media (max-width: 768px) {
   .page-container {
     padding: 20px 16px 100px 16px;
@@ -146,6 +152,10 @@ body {
   .responsive-grid {
     grid-template-columns: 1fr;
     padding: 0;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
   }
 
   .hidden-mobile {
