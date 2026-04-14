@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { registerVietnameseFonts } from '../utils/pdfFonts';
 
 import { API } from '../api';
@@ -79,7 +79,7 @@ export default function ReportView({ vehicles }) {
         String(d.craneHours || '0'), String(d.note || '')
       ]);
 
-      doc.autoTable({
+      autoTable(doc, {
         head: [cols], body: rows, startY: 36, theme: 'grid',
         headStyles: { fillColor: [5, 150, 105], textColor: 255, fontSize: 9, halign: 'center', valign: 'middle', font: 'Roboto', fontStyle: 'bold' },
         styles: { fontSize: 9, halign: 'center', cellPadding: 4, font: 'Roboto' },

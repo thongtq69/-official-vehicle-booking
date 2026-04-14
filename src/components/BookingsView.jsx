@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Check, Download, Plus, Clock, UserCheck, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { registerVietnameseFonts } from '../utils/pdfFonts';
 import { API } from '../api';
 
@@ -172,7 +172,7 @@ export default function BookingsView({ vehicles, drivers, user }) {
       doc.setFont('Roboto', 'normal');
       doc.text(b.destination || '', 20 + doc.getTextWidth('3. Lộ trình xe chạy: '), y); y += lineHeight;
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: y + 5,
         head: [['Giờ/\nngày\nxuất\nphát', 'Địa điểm xuất phát', 'Địa điểm đến', 'Số Km\nxe\nchạy', 'Chi phí\ngửi xe (đ)']],
         body: [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']],
