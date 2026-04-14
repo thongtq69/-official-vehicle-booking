@@ -306,7 +306,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const base = 'http://localhost:5000/api';
+    const base = import.meta.env.VITE_API_URL || '/api';
     fetch(`${base}/vehicles`).then(r => r.json()).then(setVehicles).catch(console.error);
     fetch(`${base}/drivers`).then(r => r.json()).then(setDrivers).catch(console.error);
     fetch(`${base}/dashboard/stats`).then(r => r.json()).then(setStats).catch(console.error);

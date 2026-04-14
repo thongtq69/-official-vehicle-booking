@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, FileCheck, Wrench, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API } from '../api';
 
 const statusConfig = {
   expired: { label: 'Hết hạn', badge: 'badge-danger', icon: AlertTriangle, color: '#ef4444' },

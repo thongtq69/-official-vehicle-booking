@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Phone, X, Car, CreditCard } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API } from '../api';
 const getToken = () => localStorage.getItem('token');
 const authFetch = (url, opts = {}) => fetch(url, {
   ...opts, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}`, ...opts.headers }

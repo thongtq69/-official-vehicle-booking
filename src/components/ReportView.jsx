@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { registerVietnameseFonts } from '../utils/pdfFonts';
 
-const API = 'http://localhost:5000/api';
+import { API } from '../api';
 const getToken = () => localStorage.getItem('token');
 const authFetch = (url, opts = {}) => fetch(url, {
   ...opts, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}`, ...opts.headers }

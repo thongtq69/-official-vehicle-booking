@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Car, Clock, User, Navigation } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API } from '../api';
 
 // Custom colored marker using divIcon
 const createMarkerIcon = (color) => L.divIcon({

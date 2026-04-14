@@ -65,7 +65,7 @@ export default function BookingsView({ vehicles, drivers, user }) {
       doc.setFont('Roboto', 'normal');
       const pageWidth = doc.internal.pageSize.getWidth();
 
-      // Page 1: LENH DIEU XE
+      // Page 1: LỆNH ĐIỀU XE
       doc.setFont('Roboto', 'bold');
       doc.setFontSize(10);
       doc.text('CÔNG TY ĐIỆN LỰC HÀ TĨNH', 14, 20);
@@ -147,7 +147,7 @@ export default function BookingsView({ vehicles, drivers, user }) {
       doc.setFont('Roboto', 'italic');
       doc.text('(Ký, ghi rõ họ tên)', pageWidth - 60, y + 16, null, null, 'center');
 
-      // Page 2: NHAT TRINH XE
+      // Page 2: NHẬT TRÌNH XE
       doc.addPage();
       doc.setFont('Roboto', 'bold');
       doc.setFontSize(16);
@@ -158,36 +158,36 @@ export default function BookingsView({ vehicles, drivers, user }) {
 
       y = 55;
       doc.setFont('Roboto', 'bold');
-      doc.text('1. Don vi su dung xe: ', 20, y);
+      doc.text('1. Đơn vị sử dụng xe: ', 20, y);
       doc.setFont('Roboto', 'normal');
-      doc.text(b.department || '', 20 + doc.getTextWidth('1. Don vi su dung xe: '), y); y += lineHeight;
+      doc.text(b.department || '', 20 + doc.getTextWidth('1. Đơn vị sử dụng xe: '), y); y += lineHeight;
 
       doc.setFont('Roboto', 'bold');
-      doc.text('2. Lai xe: ', 20, y);
+      doc.text('2. Lái xe: ', 20, y);
       doc.setFont('Roboto', 'normal');
-      doc.text(b.driverId?.name || b.vehicleId?.driverId?.name || '', 20 + doc.getTextWidth('2. Lai xe: '), y); y += lineHeight;
+      doc.text(b.driverId?.name || b.vehicleId?.driverId?.name || '', 20 + doc.getTextWidth('2. Lái xe: '), y); y += lineHeight;
 
       doc.setFont('Roboto', 'bold');
-      doc.text('3. Lộ trình xe chay: ', 20, y);
+      doc.text('3. Lộ trình xe chạy: ', 20, y);
       doc.setFont('Roboto', 'normal');
-      doc.text(b.destination || '', 20 + doc.getTextWidth('3. Lộ trình xe chay: '), y); y += lineHeight;
+      doc.text(b.destination || '', 20 + doc.getTextWidth('3. Lộ trình xe chạy: '), y); y += lineHeight;
 
       doc.autoTable({
         startY: y + 5,
-        head: [['Gio/\nngay\nxuat\nphat', 'Dia diem xuat phat', 'Dia diem den', 'So Km\nxe\nchay', 'Chi phi\ngui xe (d)']],
+        head: [['Giờ/\nngày\nxuất\nphát', 'Địa điểm xuất phát', 'Địa điểm đến', 'Số Km\nxe\nchạy', 'Chi phí\ngửi xe (đ)']],
         body: [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']],
         theme: 'grid',
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.1, halign: 'center', fontSize: 10, font: 'Roboto', fontStyle: 'bold' },
         styles: { font: 'Roboto', fontSize: 10, cellPadding: 4, minCellHeight: 20, halign: 'center', valign: 'middle' },
-        foot: [[{ content: 'Tong km Lich trinh xe chay', colSpan: 3, styles: { halign: 'center', fontStyle: 'bold' } }, { content: '', colSpan: 1 }, { content: '', colSpan: 1 }]],
+        foot: [[{ content: 'Tổng km Lịch trình xe chạy', colSpan: 3, styles: { halign: 'center', fontStyle: 'bold' } }, { content: '', colSpan: 1 }, { content: '', colSpan: 1 }]],
         footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.1 }
       });
 
       const finalY = doc.lastAutoTable.finalY + 20;
       doc.setFont('Roboto', 'bold');
-      doc.text('Xac nhan cua Don vi su dung xe', 55, finalY, null, null, 'center');
-      doc.text('Lai xe', pageWidth - 55, finalY, null, null, 'center');
-      doc.text('Xac nhan cua Chanh van phong', pageWidth / 2, finalY + 40, null, null, 'center');
+      doc.text('Xác nhận của Đơn vị sử dụng xe', 55, finalY, null, null, 'center');
+      doc.text('Lái xe', pageWidth - 55, finalY, null, null, 'center');
+      doc.text('Xác nhận của Chánh văn phòng', pageWidth / 2, finalY + 40, null, null, 'center');
 
       const filename = `Lenh_Dieu_Xe_${b.vehicleId?.plate || 'draft'}.pdf`;
       doc.save(filename);
@@ -206,7 +206,7 @@ export default function BookingsView({ vehicles, drivers, user }) {
         .catch(console.error);
     } catch (err) {
       console.error('PDF Error:', err);
-      alert('Khong the tao PDF: ' + err.message);
+      alert('Không thể tạo PDF: ' + err.message);
     }
   };
 
@@ -342,8 +342,8 @@ export default function BookingsView({ vehicles, drivers, user }) {
                   <div className="form-group"><label className="form-label">Thời gian về *</label><input required type="datetime-local" className="form-input" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} /></div>
                 </div>
                 <div className="form-grid">
-                  <div className="form-group"><label className="form-label">Thời lượng</label><input className="form-input" value={formData.duration} onChange={e => setFormData({...formData, duration: e.target.value})} placeholder="1 Ngay, 0.5 Ngay..." /></div>
-                  <div className="form-group"><label className="form-label">Yêu cầu xe</label><input className="form-input" value={formData.vehicleRequest} onChange={e => setFormData({...formData, vehicleRequest: e.target.value})} placeholder="4 cho, 16 cho, BKS..." /></div>
+                  <div className="form-group"><label className="form-label">Thời lượng</label><input className="form-input" value={formData.duration} onChange={e => setFormData({...formData, duration: e.target.value})} placeholder="1 Ngày, 0.5 Ngày..." /></div>
+                  <div className="form-group"><label className="form-label">Yêu cầu xe</label><input className="form-input" value={formData.vehicleRequest} onChange={e => setFormData({...formData, vehicleRequest: e.target.value})} placeholder="4 chỗ, 16 chỗ, BKS..." /></div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input type="checkbox" id="adhoc" checked={formData.isAdhoc} onChange={e => setFormData({...formData, isAdhoc: e.target.checked})} style={{ width: 16, height: 16 }} />
