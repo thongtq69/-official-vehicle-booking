@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Car, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Search, Edit2, Car, X } from 'lucide-react';
 
 const API = 'http://localhost:5000/api';
 const getToken = () => localStorage.getItem('token');
@@ -16,7 +16,6 @@ export default function VehiclesView({ vehicles: initialVehicles, drivers }) {
   const [form, setForm] = useState({ plate: '', model: '', type: '', year: '', driverId: '', status: 'available', currentKm: '' });
 
   useEffect(() => { setVehicles(initialVehicles); }, [initialVehicles]);
-
   const refresh = () => fetch(`${API}/vehicles`).then(r => r.json()).then(setVehicles);
 
   const filtered = vehicles.filter(v => {
@@ -49,35 +48,33 @@ export default function VehiclesView({ vehicles: initialVehicles, drivers }) {
     refresh();
   };
 
-  const inputStyle = { width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white', fontSize: '0.9rem' };
-  const labelStyle = { display: 'block', fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '6px', fontWeight: 500 };
+  const statusLabel = (s) => s === 'available' ? 'Sẵn sàng' : s === 'in-use' ? 'Đang đi' : 'Bảo trì';
 
   return (
-    <div className="page-container">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', padding: '0 16px', flexWrap: 'wrap', gap: '16px' }}>
+    <div className="animate-in">
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Quản lý Đội xe</h1>
-          <p style={{ color: 'var(--text-dim)', marginTop: '4px', fontSize: '0.85rem' }}>{vehicles.length} phương tiện đang quản lý.</p>
+          <h1>Quản lý Đội xe</h1>
+          <p>{vehicles.length} phương tiện đang quản lý.</p>
         </div>
-        <button className="btn btn-primary" onClick={openNew}><Plus size={20} /> Thêm xe mới</button>
-      </header>
+        <button className="btn btn-primary" onClick={openNew}><Plus size={18} /> Thêm xe mới</button>
+      </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '12px', padding: '0 16px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
-          <input type="text" placeholder="Tìm biển số, model, tài xế..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ ...inputStyle, paddingLeft: '40px' }} />
+      <div className="filter-bar">
+        <div className="search-input">
+          <Search size={18} />
+          <input className="form-input" placeholder="Tìm biển số, model, tài xế..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {['all', 'available', 'in-use', 'maintenance'].map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)} style={{
-              padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border)',
-              background: filterStatus === s ? 'rgba(16,185,129,0.15)' : 'transparent',
-              color: filterStatus === s ? 'var(--primary)' : 'var(--text-dim)',
-              cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
-            }}>
-              {s === 'all' ? 'Tất cả' : s === 'available' ? 'Sẵn sàng' : s === 'in-use' ? 'Đang đi' : 'Bảo trì'}
+        <div className="filter-tabs">
+          {[
+            { v: 'all', l: 'Tất cả' },
+            { v: 'available', l: 'Sẵn sàng' },
+            { v: 'in-use', l: 'Đang đi' },
+            { v: 'maintenance', l: 'Bảo trì' }
+          ].map(s => (
+            <button key={s.v} className={`filter-tab ${filterStatus === s.v ? 'active' : ''}`} onClick={() => setFilterStatus(s.v)}>
+              {s.l}
             </button>
           ))}
         </div>
@@ -86,30 +83,32 @@ export default function VehiclesView({ vehicles: initialVehicles, drivers }) {
       {/* Grid */}
       <div className="responsive-grid">
         {filtered.map(v => (
-          <div key={v._id} className="glass" style={{ padding: '20px', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-            {v.imageUrl ? (
-              <img src={v.imageUrl} alt={v.plate} style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover' }} />
-            ) : (
-              <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: 'var(--surface)', display: 'grid', placeItems: 'center' }}>
-                <Car size={32} color="var(--text-dim)" />
-              </div>
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h3 style={{ fontWeight: 700, fontSize: '1.05rem' }}>{v.plate}</h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{v.model} ({v.year || '?'})</p>
+          <div key={v._id} className="card" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              {v.imageUrl ? (
+                <img src={v.imageUrl} alt={v.plate} style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: 72, height: 72, borderRadius: 10, background: 'var(--gray-100)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <Car size={28} color="var(--gray-400)" />
                 </div>
-                <span className={`badge badge-${v.status}`}>{v.status === 'available' ? 'Sẵn sàng' : v.status === 'in-use' ? 'Đang đi' : 'Bảo trì'}</span>
-              </div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '6px' }}>{v.type}</p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                  👤 {v.driverId?.name || 'Chưa phân'} {v.currentKm ? `· ${v.currentKm.toLocaleString()} km` : ''}
-                </span>
-                <button onClick={() => openEdit(v)} style={{ background: 'rgba(59,130,246,0.15)', border: 'none', color: '#3b82f6', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}>
-                  <Edit2 size={14} />
-                </button>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  <div>
+                    <h3 style={{ fontWeight: 700, fontSize: '1rem' }}>{v.plate}</h3>
+                    <p className="text-sm text-dim">{v.model} ({v.year || '?'})</p>
+                  </div>
+                  <span className={`badge badge-${v.status}`}><span className="badge-dot" />{statusLabel(v.status)}</span>
+                </div>
+                <p className="text-sm text-dim" style={{ marginTop: 4 }}>{v.type}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                  <span className="text-sm text-dim">
+                    {v.driverId?.name || 'Chưa phân'} {v.currentKm ? ` · ${v.currentKm.toLocaleString()} km` : ''}
+                  </span>
+                  <button onClick={() => openEdit(v)} className="btn btn-icon btn-secondary" style={{ width: 28, height: 28 }}>
+                    <Edit2 size={14} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -118,42 +117,44 @@ export default function VehiclesView({ vehicles: initialVehicles, drivers }) {
 
       {/* Modal */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-          <div className="glass" style={{ width: '100%', maxWidth: '500px', padding: '28px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>{editId ? 'Chỉnh sửa xe' : 'Thêm xe mới'}</h2>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}><X size={20} /></button>
+        <div className="modal-overlay">
+          <div className="modal modal-md">
+            <div className="modal-header">
+              <h2>{editId ? 'Chỉnh sửa xe' : 'Thêm xe mới'}</h2>
+              <button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20} /></button>
             </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div><label style={labelStyle}>Biển số *</label><input required style={inputStyle} value={form.plate} onChange={e => setForm({...form, plate: e.target.value})} /></div>
-                <div><label style={labelStyle}>Model</label><input style={inputStyle} value={form.model} onChange={e => setForm({...form, model: e.target.value})} /></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
-                <div><label style={labelStyle}>Loại xe</label><input style={inputStyle} value={form.type} onChange={e => setForm({...form, type: e.target.value})} placeholder="Xe con, Xe bán tải..." /></div>
-                <div><label style={labelStyle}>Năm SX</label><input type="number" style={inputStyle} value={form.year} onChange={e => setForm({...form, year: e.target.value})} /></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={labelStyle}>Tài xế phụ trách</label>
-                  <select style={inputStyle} value={form.driverId} onChange={e => setForm({...form, driverId: e.target.value})}>
-                    <option value="">-- Chưa phân --</option>
-                    {(drivers || []).map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-                  </select>
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="form-grid">
+                  <div className="form-group"><label className="form-label">Biển số *</label><input required className="form-input" value={form.plate} onChange={e => setForm({...form, plate: e.target.value})} /></div>
+                  <div className="form-group"><label className="form-label">Model</label><input className="form-input" value={form.model} onChange={e => setForm({...form, model: e.target.value})} /></div>
                 </div>
-                <div>
-                  <label style={labelStyle}>Trạng thái</label>
-                  <select style={inputStyle} value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
-                    <option value="available">Sẵn sàng</option>
-                    <option value="in-use">Đang đi</option>
-                    <option value="maintenance">Bảo trì</option>
-                  </select>
+                <div className="form-grid">
+                  <div className="form-group"><label className="form-label">Loại xe</label><input className="form-input" value={form.type} onChange={e => setForm({...form, type: e.target.value})} placeholder="Xe con, Xe bán tải..." /></div>
+                  <div className="form-group"><label className="form-label">Năm SX</label><input type="number" className="form-input" value={form.year} onChange={e => setForm({...form, year: e.target.value})} /></div>
                 </div>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Tài xế phụ trách</label>
+                    <select className="form-input" value={form.driverId} onChange={e => setForm({...form, driverId: e.target.value})}>
+                      <option value="">-- Chưa phân --</option>
+                      {(drivers || []).map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Trạng thái</label>
+                    <select className="form-input" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+                      <option value="available">Sẵn sàng</option>
+                      <option value="in-use">Đang đi</option>
+                      <option value="maintenance">Bảo trì</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group"><label className="form-label">Số Km hiện tại</label><input type="number" className="form-input" value={form.currentKm} onChange={e => setForm({...form, currentKm: e.target.value})} /></div>
               </div>
-              <div><label style={labelStyle}>Số Km hiện tại</label><input type="number" style={inputStyle} value={form.currentKm} onChange={e => setForm({...form, currentKm: e.target.value})} /></div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-dim)', cursor: 'pointer' }}>Hủy</button>
-                <button type="submit" className="btn btn-primary" style={{ padding: '10px 20px' }}>{editId ? 'Cập nhật' : 'Thêm xe'}</button>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Huỷ</button>
+                <button type="submit" className="btn btn-primary">{editId ? 'Cập nhật' : 'Thêm xe'}</button>
               </div>
             </form>
           </div>

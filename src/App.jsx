@@ -1,131 +1,115 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import BookingsView from './components/BookingsView';
 import ReportView from './components/ReportView';
 import DriverCheckInView from './components/DriverCheckInView';
 import VehiclesView from './components/VehiclesView';
 import DriversView from './components/DriversView';
+import MapView from './components/MapView';
+import ViolationsView from './components/ViolationsView';
+import MaintenanceView from './components/MaintenanceView';
 import {
-  LayoutDashboard,
-  Car,
-  Users,
-  FileText,
-  Search,
-  Plus,
-  Calendar,
-  Fuel,
-  Wrench,
-  FileSpreadsheet,
-  QrCode,
-  LogOut,
-  Bell,
-  TrendingUp,
-  AlertTriangle
+  LayoutDashboard, Car, Users, FileText, FileSpreadsheet, QrCode,
+  LogOut, Bell, TrendingUp, Wrench, AlertTriangle, Calendar, Menu,
+  Clock, MapPin, ShieldAlert
 } from 'lucide-react';
 
-// ========== API HELPER ==========
-const API = 'http://localhost:5000/api';
-const getToken = () => localStorage.getItem('token');
-const authFetch = (url, opts = {}) => fetch(url, {
-  ...opts,
-  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}`, ...opts.headers }
-});
-
-// ========== SIDEBAR ==========
-const Sidebar = ({ activeTab, setActiveTab, user, onLogout }) => {
-  const allMenuItems = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Tổng quan', roles: ['admin', 'team-lead', 'cvp'] },
-    { id: 'vehicles', icon: Car, label: 'Đội xe', roles: ['admin', 'team-lead', 'cvp'] },
-    { id: 'drivers', icon: Users, label: 'Tài xế', roles: ['admin', 'team-lead'] },
-    { id: 'bookings', icon: FileText, label: 'Lệnh điều xe', roles: ['admin', 'team-lead', 'cvp'] },
-    { id: 'reports', icon: FileSpreadsheet, label: 'Báo cáo tháng', roles: ['admin', 'team-lead', 'cvp'] },
-    { id: 'driver-portal', icon: QrCode, label: 'Cổng lái xe', roles: ['driver'] },
-  ];
-  const menuItems = allMenuItems.filter(m => m.roles.includes(user.role));
-
-  return (
-    <div className="glass hidden-mobile" style={{ width: '280px', margin: '20px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '40px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '10px', display: 'grid', placeItems: 'center' }}>
-          <Car size={24} color="white" />
-        </div>
-        <div>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.5px' }}>OFFICE CAR</h2>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 600 }}>DIGITAL SYSTEM</span>
-        </div>
-      </div>
-
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            style={{
-              padding: '12px 16px', borderRadius: '12px', border: 'none',
-              background: activeTab === item.id ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-              color: activeTab === item.id ? 'var(--primary)' : 'var(--text-dim)',
-              display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer',
-              transition: 'all 0.2s ease', textAlign: 'left'
-            }}
-            className={activeTab === item.id ? '' : 'nav-hover'}
-          >
-            <item.icon size={20} />
-            <span style={{ fontWeight: 600 }}>{item.label}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div style={{ marginTop: 'auto' }}>
-        <div style={{
-          padding: '16px', borderRadius: '16px', border: '1px solid var(--border)',
-          background: 'rgba(255,255,255,0.03)', marginBottom: '12px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', display: 'grid', placeItems: 'center', color: 'white', fontWeight: 700, fontSize: '0.9rem' }}>
-              {user.fullName?.charAt(0) || 'U'}
-            </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>{user.fullName}</p>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>{user.role === 'team-lead' ? 'Tổ trưởng' : user.role === 'cvp' ? 'Chánh VP' : user.role === 'driver' ? 'Lái xe' : 'Admin'}</p>
-            </div>
-          </div>
-        </div>
-        <button onClick={onLogout} style={{
-          width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)',
-          background: 'rgba(239,68,68,0.05)', color: '#ef4444', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 600
-        }}>
-          <LogOut size={18} /> Đăng xuất
-        </button>
+// ========== HEADER ==========
+const AppHeader = ({ user, onLogout, onToggleSidebar, alerts }) => (
+  <header className="app-header">
+    <div className="brand">
+      <button className="hamburger" onClick={onToggleSidebar}>
+        <Menu size={22} />
+      </button>
+      <div className="brand-icon"><Car size={20} color="white" /></div>
+      <div>
+        <h1>OFFICE CAR</h1>
+        <span>CÔNG TY ĐIỆN LỰC HÀ TĨNH</span>
       </div>
     </div>
+    <div className="app-header-right">
+      <button className="header-btn" title="Thông báo">
+        <Bell size={18} />
+        {alerts?.length > 0 && <span className="badge-dot" />}
+      </button>
+      <div className="header-user" onClick={onLogout}>
+        <div className="avatar">{user.fullName?.charAt(0) || 'U'}</div>
+        <span className="hidden-mobile">{user.fullName}</span>
+        <span className="hidden-mobile" style={{ opacity: 0.7, fontSize: '0.72rem' }}>
+          ({user.role === 'team-lead' ? 'Tổ trưởng' : user.role === 'cvp' ? 'Chánh VP' : user.role === 'driver' ? 'Lái xe' : 'Admin'})
+        </span>
+      </div>
+    </div>
+  </header>
+);
+
+// ========== SIDEBAR ==========
+const AppSidebar = ({ activeTab, setActiveTab, user, onLogout, isOpen, onClose }) => {
+  const allMenuItems = [
+    { section: 'ĐIỀU HÀNH' },
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Tổng quan', roles: ['admin', 'team-lead', 'cvp'] },
+    { id: 'map', icon: MapPin, label: 'Bản đồ', roles: ['admin', 'team-lead', 'cvp'] },
+    { id: 'bookings', icon: FileText, label: 'Lệnh điều xe', roles: ['admin', 'team-lead', 'cvp'] },
+    { section: 'QUẢN LÝ' },
+    { id: 'vehicles', icon: Car, label: 'Đội xe', roles: ['admin', 'team-lead', 'cvp'] },
+    { id: 'drivers', icon: Users, label: 'Tài xế', roles: ['admin', 'team-lead'] },
+    { id: 'violations', icon: ShieldAlert, label: 'Phạt nguội', roles: ['admin', 'team-lead', 'cvp'] },
+    { id: 'maintenance', icon: Wrench, label: 'Bảo dưỡng', roles: ['admin', 'team-lead', 'cvp'] },
+    { section: 'BÁO CÁO' },
+    { id: 'reports', icon: FileSpreadsheet, label: 'Báo cáo tháng', roles: ['admin', 'team-lead', 'cvp'] },
+    { section: 'LÁI XE' },
+    { id: 'driver-portal', icon: QrCode, label: 'Cổng lái xe', roles: ['driver'] },
+  ];
+
+  const handleClick = (id) => {
+    setActiveTab(id);
+    onClose();
+  };
+
+  return (
+    <>
+      <div className={`sidebar-overlay ${isOpen ? 'show' : ''}`} onClick={onClose} />
+      <aside className={`app-sidebar ${isOpen ? 'open' : ''}`}>
+        <nav className="sidebar-nav">
+          {allMenuItems.filter(m => !m.section || !m.roles || m.roles.includes(user.role)).map((item, i) => {
+            if (item.section) {
+              return <div key={i} className="sidebar-section-label">{item.section}</div>;
+            }
+            if (!item.roles.includes(user.role)) return null;
+            return (
+              <button key={item.id} className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`} onClick={() => handleClick(item.id)}>
+                <item.icon size={20} className="sidebar-icon" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <div className="sidebar-footer">
+          <button className="sidebar-logout" onClick={onLogout}>
+            <LogOut size={18} /> Đăng xuất
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };
 
 // ========== BOTTOM NAV (Mobile) ==========
-const BottomNav = ({ activeTab, setActiveTab, user }) => {
-  const allItems = [
-    { id: 'dashboard', icon: LayoutDashboard, roles: ['admin', 'team-lead', 'cvp'] },
-    { id: 'vehicles', icon: Car, roles: ['admin', 'team-lead', 'cvp'] },
-    { id: 'bookings', icon: FileText, roles: ['admin', 'team-lead', 'cvp'] },
-    { id: 'reports', icon: FileSpreadsheet, roles: ['admin', 'team-lead', 'cvp'] },
-    { id: 'driver-portal', icon: QrCode, roles: ['driver'] },
-  ];
-  const items = allItems.filter(m => m.roles.includes(user.role));
+const MobileBottomNav = ({ activeTab, setActiveTab, user }) => {
+  const items = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Tổng quan', roles: ['admin', 'team-lead', 'cvp'] },
+    { id: 'map', icon: MapPin, label: 'Bản đồ', roles: ['admin', 'team-lead', 'cvp'] },
+    { id: 'bookings', icon: FileText, label: 'Lệnh xe', roles: ['admin', 'team-lead', 'cvp'] },
+    { id: 'vehicles', icon: Car, label: 'Đội xe', roles: ['admin', 'team-lead', 'cvp'] },
+    { id: 'driver-portal', icon: QrCode, label: 'Cổng LX', roles: ['driver'] },
+  ].filter(m => m.roles.includes(user.role));
 
   return (
-    <div className="glass show-mobile" style={{
-      position: 'fixed', bottom: '16px', left: '16px', right: '16px',
-      padding: '12px', display: 'flex', justifyContent: 'space-around', zIndex: 1000
-    }}>
+    <div className="mobile-bottom-nav">
       {items.map(item => (
-        <button key={item.id} onClick={() => setActiveTab(item.id)} style={{
-          background: 'transparent', border: 'none',
-          color: activeTab === item.id ? 'var(--primary)' : 'var(--text-dim)',
-          padding: '8px', transition: '0.2s'
-        }}>
-          <item.icon size={24} />
+        <button key={item.id} className={`mobile-nav-item ${activeTab === item.id ? 'active' : ''}`} onClick={() => setActiveTab(item.id)}>
+          <item.icon size={20} />
+          <span>{item.label}</span>
         </button>
       ))}
     </div>
@@ -135,176 +119,168 @@ const BottomNav = ({ activeTab, setActiveTab, user }) => {
 // ========== DASHBOARD ==========
 const Dashboard = ({ vehicles, stats, alerts, todayBookings }) => {
   const statCards = [
-    { label: 'Tổng số xe', value: stats.totalVehicles || 0, color: 'var(--secondary)', icon: Car },
-    { label: 'Đang hoạt động', value: stats.inUse || 0, color: 'var(--primary)', icon: TrendingUp },
-    { label: 'Đang bảo trì', value: stats.maintenance || 0, color: 'var(--accent)', icon: Wrench },
-    { label: 'Lệnh chờ duyệt', value: stats.pendingBookings || 0, color: '#f43f5e', icon: AlertTriangle },
+    { label: 'Tổng số xe', value: stats.totalVehicles || 0, color: '#3b82f6', bg: '#dbeafe', icon: Car },
+    { label: 'Đang hoạt động', value: stats.inUse || 0, color: '#059669', bg: '#d1fae5', icon: TrendingUp },
+    { label: 'Đang bảo trì', value: stats.maintenance || 0, color: '#f59e0b', bg: '#fef3c7', icon: Wrench },
+    { label: 'Lệnh chờ duyệt', value: stats.pendingBookings || 0, color: '#ef4444', bg: '#fee2e2', icon: AlertTriangle },
   ];
 
-  return (
-    <div className="page-container">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', padding: '0 16px' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Bảng Điều Khiển</h1>
-          <p style={{ color: 'var(--text-dim)', marginTop: '4px', fontSize: '0.85rem' }}>
-            Tổng quan tình hình đội xe hôm nay.
-          </p>
-        </div>
-      </header>
+  const statusLabel = (s) => s === 'available' ? 'Sẵn sàng' : s === 'in-use' ? 'Đang đi' : 'Bảo trì';
 
-      <div className="stat-grid" style={{ marginBottom: '40px', padding: '0 16px' }}>
+  return (
+    <div className="animate-in">
+      <div className="page-header">
+        <div>
+          <h1>Bảng Điều Khiển</h1>
+          <p>Tổng quan tình hình đội xe hôm nay.</p>
+        </div>
+      </div>
+
+      <div className="stat-grid" style={{ marginBottom: 24 }}>
         {statCards.map((stat, i) => (
-          <motion.div key={i} className="glass" whileHover={{ y: -5 }} style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', fontWeight: 500 }}>{stat.label}</p>
+          <div key={i} className="stat-card">
+            <div className="stat-icon" style={{ background: stat.bg }}>
               <stat.icon size={20} color={stat.color} />
             </div>
-            <h3 style={{ fontSize: '2.5rem', fontWeight: 700, margin: '8px 0', color: stat.color }}>{stat.value}</h3>
-          </motion.div>
+            <div className="stat-value" style={{ color: stat.color }}>{stat.value}</div>
+            <div className="stat-label">{stat.label}</div>
+          </div>
         ))}
       </div>
 
-      <div className="main-grid" style={{ padding: '0 16px' }}>
-        <div className="glass" style={{ padding: '24px', overflowX: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Tình trạng đội xe ({vehicles.length} xe)</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }} className="main-grid-layout">
+        {/* Vehicle Table */}
+        <div className="card">
+          <div className="card-header">
+            <h3>Tình trạng đội xe ({vehicles.length} xe)</h3>
           </div>
-
-          {/* Desktop Table */}
-          <div className="hidden-mobile">
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '12px 8px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>BIỂN SỐ</th>
-                  <th style={{ padding: '12px 8px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>LOẠI XE</th>
-                  <th style={{ padding: '12px 8px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>TÀI XẾ</th>
-                  <th style={{ padding: '12px 8px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>KM HIỆN TẠI</th>
-                  <th style={{ padding: '12px 8px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>TRẠNG THÁI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vehicles.map((car) => (
-                  <tr key={car._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '14px 8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        {car.imageUrl ? (
-                          <img src={car.imageUrl} alt={car.plate} style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'var(--surface)', display: 'grid', placeItems: 'center' }}>
-                            <Car size={20} color="var(--text-dim)" />
-                          </div>
-                        )}
-                        <div>
-                          <p style={{ fontWeight: 600 }}>{car.plate}</p>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{car.model}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '14px 8px', fontSize: '0.85rem', color: 'var(--text-dim)' }}>{car.type}</td>
-                    <td style={{ padding: '14px 8px', fontSize: '0.85rem' }}>{car.driverId?.name || '—'}</td>
-                    <td style={{ padding: '14px 8px', fontSize: '0.85rem', color: 'var(--text-dim)' }}>{car.currentKm?.toLocaleString() || '—'}</td>
-                    <td style={{ padding: '14px 8px' }}>
-                      <span className={`badge badge-${car.status}`}>{car.status}</span>
-                    </td>
+          <div className="card-body" style={{ padding: 0 }}>
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Biển số</th>
+                    <th>Loại xe</th>
+                    <th>Tài xế</th>
+                    <th>Km hiện tại</th>
+                    <th>Trạng thái</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className="show-mobile mobile-card-list">
-            {vehicles.map(car => (
-              <div key={car._id} className="mobile-card" style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                {car.imageUrl ? (
-                  <img src={car.imageUrl} alt={car.plate} style={{ width: '56px', height: '56px', borderRadius: '10px', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: '56px', height: '56px', borderRadius: '10px', background: 'var(--surface)', display: 'grid', placeItems: 'center' }}>
-                    <Car size={24} color="var(--text-dim)" />
-                  </div>
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <h4 style={{ fontWeight: 700 }}>{car.plate}</h4>
-                    <span className={`badge badge-${car.status}`}>{car.status}</span>
-                  </div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>{car.model} - {car.type}</p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>Tài xế: {car.driverId?.name || '—'}</p>
-                </div>
-              </div>
-            ))}
+                </thead>
+                <tbody>
+                  {vehicles.map(car => (
+                    <tr key={car._id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {car.imageUrl ? (
+                            <img src={car.imageUrl} alt={car.plate} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--gray-100)', display: 'grid', placeItems: 'center' }}>
+                              <Car size={18} color="var(--gray-400)" />
+                            </div>
+                          )}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{car.plate}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>{car.model}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--gray-500)' }}>{car.type}</td>
+                      <td>{car.driverId?.name || <span style={{ color: 'var(--gray-400)' }}>—</span>}</td>
+                      <td style={{ color: 'var(--gray-500)' }}>{car.currentKm?.toLocaleString() || '—'}</td>
+                      <td><span className={`badge badge-${car.status}`}><span className="badge-dot" />{statusLabel(car.status)}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         {/* Side Panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="glass" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '20px' }}>Phân bổ theo loại</h3>
-            {(() => {
-              const types = {};
-              vehicles.forEach(v => { types[v.type] = (types[v.type] || 0) + 1; });
-              return Object.entries(types).map(([type, count], i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>{type}</span>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{count}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Alerts */}
+          <div className="card">
+            <div className="card-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={16} color={alerts?.length > 0 ? '#ef4444' : 'var(--gray-400)'} />
+                Cảnh báo
+              </h3>
+            </div>
+            <div className="card-body">
+              {alerts && alerts.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {alerts.map(a => (
+                    <div key={a._id} className="alert-card alert-danger">
+                      <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>Xe {a.plate}</div>
+                        <div style={{ fontSize: '0.78rem', marginTop: 2 }}>Sắp hết hạn đăng kiểm / bảo hiểm.</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ));
-            })()}
+              ) : (
+                <p className="text-dim text-sm">Không có cảnh báo nào.</p>
+              )}
+            </div>
           </div>
 
-          <div className="glass" style={{ padding: '24px', border: alerts?.length > 0 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border)' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertTriangle size={18} color={alerts?.length > 0 ? '#ef4444' : 'var(--text-dim)'} />
-              Cảnh báo hạn kiểm định / bảo hiểm
-            </h3>
-            {alerts && alerts.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {alerts.map(a => (
-                  <div key={a._id} style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', borderLeft: '3px solid #ef4444' }}>
-                    <p style={{ fontWeight: 600, fontSize: '0.9rem', color: '#ef4444' }}>Xe {a.plate}</p>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>Sáp hết hạn kiểm định/bảo hiểm.</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>Không có cảnh báo nào.</p>
-            )}
+          {/* Today Bookings */}
+          <div className="card">
+            <div className="card-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Calendar size={16} color="var(--primary-600)" />
+                Lịch trình hôm nay
+              </h3>
+            </div>
+            <div className="card-body">
+              {todayBookings && todayBookings.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {todayBookings.map(b => (
+                    <div key={b._id} className="alert-card alert-info">
+                      <Clock size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{b.destination}</div>
+                        <div style={{ fontSize: '0.78rem', marginTop: 2 }}>
+                          {new Date(b.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} — Xe: {b.vehicleId?.plate || 'Chưa xếp'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-dim text-sm">Hôm nay không có lịch trình nào.</p>
+              )}
+            </div>
           </div>
 
-          <div className="glass" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Calendar size={18} color="var(--primary)" />
-              Lịch trình trong ngày
-            </h3>
-            {todayBookings && todayBookings.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {todayBookings.map(b => (
-                  <div key={b._id} style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid var(--primary)' }}>
-                    <p style={{ fontWeight: 600, fontSize: '0.85rem' }}>{b.destination}</p>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>{new Date(b.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} • Xe: {b.vehicleId?.plate || 'Chưa xếp'}</p>
+          {/* Vehicle Types */}
+          <div className="card">
+            <div className="card-header"><h3>Phân bổ theo loại</h3></div>
+            <div className="card-body">
+              {(() => {
+                const types = {};
+                vehicles.forEach(v => { types[v.type] = (types[v.type] || 0) + 1; });
+                return Object.entries(types).map(([type, count], i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < Object.entries(types).length - 1 ? '1px solid var(--gray-100)' : 'none' }}>
+                    <span className="text-sm text-dim">{type}</span>
+                    <span className="font-bold text-primary">{count}</span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>Hôm nay không có lịch trình chuyến đi nào.</p>
-            )}
+                ));
+              })()}
+            </div>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .main-grid-layout { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 };
-
-// ========== PLACEHOLDER (for unbuilt views) ==========
-const PlaceholderView = ({ title }) => (
-  <div style={{ flex: 1, padding: '40px', display: 'grid', placeItems: 'center' }}>
-    <div style={{ textAlign: 'center' }}>
-      <Wrench size={48} color="var(--text-dim)" style={{ marginBottom: '16px' }} />
-      <h2 style={{ color: 'var(--text-dim)', marginBottom: '8px' }}>{title}</h2>
-      <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Tính năng đang phát triển...</p>
-    </div>
-  </div>
-);
 
 // ========== MAIN APP ==========
 export default function App() {
@@ -316,8 +292,8 @@ export default function App() {
   const [alerts, setAlerts] = useState([]);
   const [todayBookings, setTodayBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Check existing login
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -328,14 +304,14 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  // Fetch data when logged in
   useEffect(() => {
     if (!user) return;
-    fetch(`${API}/vehicles`).then(r => r.json()).then(setVehicles).catch(console.error);
-    fetch(`${API}/drivers`).then(r => r.json()).then(setDrivers).catch(console.error);
-    fetch(`${API}/dashboard/stats`).then(r => r.json()).then(setStats).catch(console.error);
-    fetch(`${API}/dashboard/alerts`).then(r => r.json()).then(setAlerts).catch(console.error);
-    fetch(`${API}/dashboard/today`).then(r => r.json()).then(setTodayBookings).catch(console.error);
+    const base = 'http://localhost:5000/api';
+    fetch(`${base}/vehicles`).then(r => r.json()).then(setVehicles).catch(console.error);
+    fetch(`${base}/drivers`).then(r => r.json()).then(setDrivers).catch(console.error);
+    fetch(`${base}/dashboard/stats`).then(r => r.json()).then(setStats).catch(console.error);
+    fetch(`${base}/dashboard/alerts`).then(r => r.json()).then(setAlerts).catch(console.error);
+    fetch(`${base}/dashboard/today`).then(r => r.json()).then(setTodayBookings).catch(console.error);
   }, [user]);
 
   const handleLogin = (userData) => {
@@ -354,18 +330,35 @@ export default function App() {
   if (loading) return null;
   if (!user) return <LoginPage onLogin={handleLogin} />;
 
+  // Driver has simplified layout
+  if (user.role === 'driver') {
+    return (
+      <div>
+        <AppHeader user={user} onLogout={handleLogout} onToggleSidebar={() => {}} alerts={[]} />
+        <div style={{ marginTop: 'var(--header-height)' }}>
+          <DriverCheckInView />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', width: '100%', minHeight: '100vh', gap: '20px', paddingBottom: '80px' }}>
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout} />
+    <div>
+      <AppHeader user={user} onLogout={handleLogout} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} alerts={alerts} />
+      <AppSidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {activeTab === 'dashboard' && <Dashboard vehicles={vehicles} stats={stats} alerts={alerts} todayBookings={todayBookings} />}
-      {activeTab === 'vehicles' && <VehiclesView vehicles={vehicles} drivers={drivers} />}
-      {activeTab === 'drivers' && <DriversView drivers={drivers} />}
-      {activeTab === 'bookings' && <BookingsView vehicles={vehicles} drivers={drivers} user={user} />}
-      {activeTab === 'reports' && <ReportView vehicles={vehicles} />}
-      {activeTab === 'driver-portal' && <DriverCheckInView vehicles={vehicles} user={user} />}
+      <main className="app-main">
+        {activeTab === 'dashboard' && <Dashboard vehicles={vehicles} stats={stats} alerts={alerts} todayBookings={todayBookings} />}
+        {activeTab === 'map' && <MapView />}
+        {activeTab === 'vehicles' && <VehiclesView vehicles={vehicles} drivers={drivers} />}
+        {activeTab === 'drivers' && <DriversView drivers={drivers} />}
+        {activeTab === 'bookings' && <BookingsView vehicles={vehicles} drivers={drivers} user={user} />}
+        {activeTab === 'violations' && <ViolationsView vehicles={vehicles} user={user} />}
+        {activeTab === 'maintenance' && <MaintenanceView />}
+        {activeTab === 'reports' && <ReportView vehicles={vehicles} />}
+      </main>
 
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
+      <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Car, Eye, EyeOff, LogIn, Info } from 'lucide-react';
 import { API } from '../api';
 
@@ -33,192 +33,179 @@ export default function LoginPage({ onLogin }) {
 
   return (
     <div style={{
-      minHeight: '100dvh', // Use dynamic viewport height for mobile browsers
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      background: 'radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%)',
-      padding: '16px',
-      width: '100vw',
+      minHeight: '100dvh',
+      display: 'flex',
+      background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 30%, #f0f9ff 100%)',
       overflow: 'hidden'
     }}>
-      <div className="glass" style={{
-        width: '100%', 
-        maxWidth: '400px', 
-        padding: '40px 24px',
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        gap: '24px',
-        animation: 'fadeIn 0.6s ease-out'
+      {/* Left - Branding */}
+      <div className="hidden-mobile" style={{
+        flex: 1,
+        background: 'linear-gradient(135deg, #047857 0%, #059669 50%, #0d9488 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '60px',
+        color: 'white',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        {/* Logo Section */}
-        <div style={{ textAlign: 'center' }}>
+        {/* Background Pattern */}
+        <div style={{
+          position: 'absolute', inset: 0, opacity: 0.1,
+          backgroundImage: 'radial-gradient(circle at 25% 25%, white 1px, transparent 1px), radial-gradient(circle at 75% 75%, white 1px, transparent 1px)',
+          backgroundSize: '40px 40px'
+        }} />
+        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 420 }}>
           <div style={{
-            width: '60px', 
-            height: '60px', 
-            background: 'linear-gradient(135deg, var(--primary), #059669)',
-            borderRadius: '18px', 
-            display: 'grid', 
-            placeItems: 'center', 
-            margin: '0 auto 16px',
-            boxShadow: '0 8px 32px rgba(16, 185, 129, 0.4)',
-            transform: 'rotate(-5deg)'
+            width: 80, height: 80,
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: 20,
+            display: 'grid', placeItems: 'center',
+            margin: '0 auto 24px',
+            backdropFilter: 'blur(10px)'
           }}>
-            <Car size={32} color="white" />
+            <Car size={40} />
           </div>
-          <h1 style={{ 
-            fontSize: '1.75rem', 
-            fontWeight: 800, 
-            letterSpacing: '-0.5px',
-            background: 'linear-gradient(180deg, #fff 0%, #cbd5e1 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
+          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: 12, letterSpacing: '-0.5px' }}>
             OFFICE CAR
           </h1>
-          <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginTop: '6px' }}>Hệ thống Quản lý Xe Công vụ</p>
-        </div>
-
-        {/* Form Section */}
-        <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Tên đăng nhập
-            </label>
-            <input
-              type="text" value={username} onChange={e => setUsername(e.target.value)}
-              placeholder="Nhập tài khoản"
-              required
-              style={{
-                width: '100%', 
-                padding: '14px 16px', 
-                background: 'rgba(15, 23, 42, 0.5)',
-                border: '1px solid var(--border)', 
-                borderRadius: '12px', 
-                color: 'white',
-                fontSize: '1rem', 
-                outline: 'none', 
-                transition: 'all 0.3s ease'
-              }}
-              onFocus={e => {
-                e.target.style.borderColor = 'var(--primary)';
-                e.target.style.background = 'rgba(16, 185, 129, 0.05)';
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = 'var(--border)';
-                e.target.style.background = 'rgba(15, 23, 42, 0.5)';
-              }}
-            />
+          <p style={{ fontSize: '1.1rem', opacity: 0.9, lineHeight: 1.6, marginBottom: 32 }}>
+            Hệ thống quản lý xe công vụ
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
+            {[
+              'Số hoá toàn bộ quy trình điều xe',
+              'Theo dõi hành trình, Km tức thời',
+              'Xuất lệnh, báo cáo tự động'
+            ].map((text, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.95rem', opacity: 0.9 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: '0.7rem' }}>&#10003;</span>
+                </div>
+                {text}
+              </div>
+            ))}
           </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Mật khẩu
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu"
-                required
-                style={{
-                  width: '100%', 
-                  padding: '14px 48px 14px 16px', 
-                  background: 'rgba(15, 23, 42, 0.5)',
-                  border: '1px solid var(--border)', 
-                  borderRadius: '12px', 
-                  color: 'white',
-                  fontSize: '1rem', 
-                  outline: 'none', 
-                  transition: 'all 0.3s ease'
-                }}
-                onFocus={e => {
-                  e.target.style.borderColor = 'var(--primary)';
-                  e.target.style.background = 'rgba(16, 185, 129, 0.05)';
-                }}
-                onBlur={e => {
-                  e.target.style.borderColor = 'var(--border)';
-                  e.target.style.background = 'rgba(15, 23, 42, 0.5)';
-                }}
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
-                position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '8px'
-              }}>
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <div style={{
-              padding: '12px 16px', 
-              background: 'rgba(239, 68, 68, 0.1)', 
-              borderRadius: '10px',
-              border: '1px solid rgba(239, 68, 68, 0.2)', 
-              color: '#f87171', 
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span style={{ fontSize: '1.2rem' }}>•</span> {error}
-            </div>
-          )}
-
-          <button
-            type="submit" disabled={loading}
-            className="btn btn-primary"
-            style={{
-              width: '100%', 
-              padding: '16px', 
-              justifyContent: 'center', 
-              fontSize: '1rem',
-              opacity: loading ? 0.7 : 1, 
-              marginTop: '4px',
-              borderRadius: '12px',
-              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.2)'
-            }}
-          >
-            {loading ? 'Đang xác thực...' : <><LogIn size={20} /> Đăng nhập</>}
-          </button>
-        </form>
-
-        {/* Demo Accounts Section */}
-        <div style={{
-          width: '100%', 
-          padding: '20px', 
-          background: 'rgba(255, 255, 255, 0.02)',
-          borderRadius: '16px', 
-          border: '1px solid rgba(255, 255, 255, 0.05)',
-          marginTop: '8px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <Info size={14} color="var(--primary)" />
-            <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Tài khoản Demo
-            </p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', fontSize: '0.8rem' }}>
-            <span style={{ color: 'var(--text-dim)' }}>Admin:</span>
-            <span style={{ color: '#fff', fontWeight: 500 }}>admin / 123456</span>
-            
-            <span style={{ color: 'var(--text-dim)' }}>CVP:</span>
-            <span style={{ color: '#fff', fontWeight: 500 }}>cvp / 123456</span>
-            
-            <span style={{ color: 'var(--text-dim)' }}>Lái xe:</span>
-            <span style={{ color: '#fff', fontWeight: 500 }}>SĐT / 123456</span>
-          </div>
+          <p style={{ marginTop: 40, fontSize: '0.8rem', opacity: 0.6 }}>
+            CÔNG TY ĐIỆN LỰC HÀ TĨNH
+          </p>
         </div>
       </div>
 
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      {/* Right - Login Form */}
+      <div style={{
+        width: '100%',
+        maxWidth: 480,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 24px'
+      }}>
+        <div style={{ width: '100%', maxWidth: 380 }}>
+          {/* Mobile Logo */}
+          <div className="show-mobile" style={{
+            textAlign: 'center', marginBottom: 32,
+            flexDirection: 'column', alignItems: 'center'
+          }}>
+            <div style={{
+              width: 56, height: 56,
+              background: 'linear-gradient(135deg, #059669, #047857)',
+              borderRadius: 14,
+              display: 'grid', placeItems: 'center',
+              margin: '0 auto 12px',
+              boxShadow: '0 4px 14px rgba(5, 150, 105, 0.3)'
+            }}>
+              <Car size={28} color="white" />
+            </div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--gray-900)' }}>OFFICE CAR</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>Hệ thống quản lý xe công vụ</p>
+          </div>
+
+          <div className="hidden-mobile">
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--gray-900)', marginBottom: 4 }}>
+              Đăng nhập
+            </h2>
+            <p style={{ fontSize: '0.9rem', color: 'var(--gray-500)', marginBottom: 28 }}>
+              Nhập tài khoản để truy cập hệ thống.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div className="form-group">
+              <label className="form-label">Tên đăng nhập</label>
+              <input
+                className="form-input"
+                type="text" value={username} onChange={e => setUsername(e.target.value)}
+                placeholder="Nhập tài khoản"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Mật khẩu</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="form-input"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu"
+                  required
+                  style={{ paddingRight: 44 }}
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: 'var(--gray-400)', cursor: 'pointer', padding: 6, borderRadius: 6
+                }}>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="alert-card alert-danger" style={{ padding: '10px 14px' }}>
+                <span style={{ fontWeight: 600 }}>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit" disabled={loading}
+              className="btn btn-primary"
+              style={{
+                width: '100%', padding: '12px', justifyContent: 'center',
+                fontSize: '0.95rem', opacity: loading ? 0.7 : 1,
+                marginTop: 4
+              }}
+            >
+              {loading ? 'Đang xác thực...' : <><LogIn size={18} /> Đăng nhập</>}
+            </button>
+          </form>
+
+          {/* Demo Accounts */}
+          <div style={{
+            marginTop: 28, padding: 16,
+            background: 'var(--gray-50)',
+            borderRadius: 'var(--radius)',
+            border: '1px solid var(--gray-200)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Info size={14} color="var(--primary-600)" />
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Tài khoản Demo
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 12px', fontSize: '0.82rem' }}>
+              <span style={{ color: 'var(--gray-500)' }}>Admin:</span>
+              <span style={{ fontWeight: 600 }}>admin / 123456</span>
+              <span style={{ color: 'var(--gray-500)' }}>CVP:</span>
+              <span style={{ fontWeight: 600 }}>cvp / 123456</span>
+              <span style={{ color: 'var(--gray-500)' }}>Lái xe:</span>
+              <span style={{ fontWeight: 600 }}>SĐT / 123456</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

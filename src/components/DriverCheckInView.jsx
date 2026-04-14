@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ScanLine, Camera, CheckCircle, Clock, MapPin, ChevronRight, LogOut } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ScanLine, Camera, CheckCircle, Clock, MapPin, ChevronRight, Navigation } from 'lucide-react';
 
 const API = 'http://localhost:5000/api';
 const getToken = () => localStorage.getItem('token');
@@ -7,14 +7,16 @@ const authFetch = (url, opts = {}) => fetch(url, {
   ...opts, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}`, ...opts.headers }
 });
 
-export default function DriverCheckInView({ vehicles, user }) {
+export default function DriverCheckInView() {
   const [myBookings, setMyBookings] = useState([]);
   const [activeBooking, setActiveBooking] = useState(null);
-  const [step, setStep] = useState('list'); // list, checkin, checkout, success
+  const [step, setStep] = useState('list');
   const [metrics, setMetrics] = useState({ startKm: '', endKm: '', craneHours: '', endPhoto: '' });
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('assigned'); // assigned, ongoing, completed
+  const [tab, setTab] = useState('assigned');
+  const [gpsStatus, setGpsStatus] = useState(null); // 'tracking' | 'error' | null
+  const lastGpsSend = useRef(0);
 
   const fetchMyBookings = () => {
     authFetch(`${API}/bookings/my`)
@@ -24,6 +26,51 @@ export default function DriverCheckInView({ vehicles, user }) {
   };
 
   useEffect(() => { fetchMyBookings(); }, []);
+
+  // GPS tracking for ongoing bookings
+  useEffect(() => {
+    const ongoingBooking = myBookings.find(b => b.status === 'ongoing');
+    if (!ongoingBooking || !ongoingBooking.vehicleId?._id) {
+      setGpsStatus(null);
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setGpsStatus('error');
+      return;
+    }
+
+    setGpsStatus('tracking');
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const now = Date.now();
+        // Throttle: send at most every 15 seconds
+        if (now - lastGpsSend.current < 15000) return;
+        lastGpsSend.current = now;
+
+        const { latitude, longitude, speed } = pos.coords;
+        authFetch(`${API}/vehicles/${ongoingBooking.vehicleId._id}/gps`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            lat: latitude,
+            lng: longitude,
+            speed: speed || 0,
+            bookingId: ongoingBooking._id
+          })
+        }).catch(console.error);
+      },
+      (err) => {
+        console.error('GPS error:', err);
+        setGpsStatus('error');
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      setGpsStatus(null);
+    };
+  }, [myBookings]);
 
   const filtered = myBookings.filter(b => {
     if (tab === 'assigned') return b.status === 'assigned';
@@ -73,121 +120,112 @@ export default function DriverCheckInView({ vehicles, user }) {
 
   const isCrane = (booking) => {
     const type = (booking.vehicleId?.type || '').toLowerCase();
-    return type.includes('nâng') || type.includes('cẩu') || type.includes('thang');
+    return type.includes('nang') || type.includes('cau') || type.includes('thang');
   };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.reload();
-  };
-
-  const inputStyle = { width: '100%', padding: '16px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--primary)', borderRadius: '10px', color: 'white', fontSize: '1.2rem', textAlign: 'center' };
-  const tabStyle = (active) => ({
-    flex: 1, padding: '10px', border: 'none', borderRadius: '8px',
-    background: active ? 'rgba(16,185,129,0.2)' : 'transparent',
-    color: active ? 'var(--primary)' : 'var(--text-dim)',
-    cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
-  });
 
   return (
-    <div style={{ flex: 1, padding: '20px', maxWidth: '520px', margin: '0 auto', minHeight: '100vh' }}>
-      {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingTop: '12px' }}>
-        <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary)' }}>CỔNG LÁI XE</h1>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Xin chào, {user?.fullName || 'Lái xe'}</p>
-        </div>
-        <button onClick={handleLogout} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', color: '#ef4444', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
-          <LogOut size={16} /> Thoát
-        </button>
-      </header>
-
+    <div style={{ maxWidth: 520, margin: '0 auto', padding: '20px 16px', minHeight: 'calc(100vh - 56px)' }}>
       {step === 'list' && (
-        <>
+        <div className="animate-in">
           {/* Tabs */}
-          <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', marginBottom: '20px' }}>
-            <button style={tabStyle(tab === 'assigned')} onClick={() => setTab('assigned')}>Chờ nhận ({myBookings.filter(b => b.status === 'assigned').length})</button>
-            <button style={tabStyle(tab === 'ongoing')} onClick={() => setTab('ongoing')}>Đang chạy ({myBookings.filter(b => b.status === 'ongoing').length})</button>
-            <button style={tabStyle(tab === 'completed')} onClick={() => setTab('completed')}>Đã xong ({myBookings.filter(b => b.status === 'completed').length})</button>
+          <div className="filter-tabs" style={{ marginBottom: 20 }}>
+            <button className={`filter-tab ${tab === 'assigned' ? 'active' : ''}`} onClick={() => setTab('assigned')} style={{ flex: 1, textAlign: 'center' }}>
+              Chờ nhận ({myBookings.filter(b => b.status === 'assigned').length})
+            </button>
+            <button className={`filter-tab ${tab === 'ongoing' ? 'active' : ''}`} onClick={() => setTab('ongoing')} style={{ flex: 1, textAlign: 'center' }}>
+              Đang chạy ({myBookings.filter(b => b.status === 'ongoing').length})
+            </button>
+            <button className={`filter-tab ${tab === 'completed' ? 'active' : ''}`} onClick={() => setTab('completed')} style={{ flex: 1, textAlign: 'center' }}>
+              Đã xong ({myBookings.filter(b => b.status === 'completed').length})
+            </button>
           </div>
+
+          {/* GPS Status */}
+          {gpsStatus && (
+            <div className={`alert-card ${gpsStatus === 'tracking' ? 'alert-success' : 'alert-danger'}`} style={{ marginBottom: 12 }}>
+              <Navigation size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ fontSize: '0.85rem' }}>
+                {gpsStatus === 'tracking' ? 'GPS đang theo dõi vị trí của bạn.' : 'Không thể truy cập GPS. Hãy bật định vị trên điện thoại.'}
+              </div>
+            </div>
+          )}
 
           {/* Booking Cards */}
           {loading ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '40px' }}>Đang tải...</p>
+            <div className="empty-state"><p>Đang tải...</p></div>
           ) : filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <ScanLine size={48} color="var(--text-dim)" style={{ marginBottom: '16px' }} />
-              <p style={{ color: 'var(--text-dim)' }}>Không có lệnh nào.</p>
+            <div className="empty-state">
+              <ScanLine size={48} />
+              <p>Không có lệnh nào.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {filtered.map(b => (
-                <div key={b._id} className="glass" style={{ padding: '18px', borderRadius: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div key={b._id} className="card" style={{ padding: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <div>
                       <h3 style={{ fontWeight: 700, fontSize: '0.95rem' }}>{b.destination}</h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>{b.purpose}</p>
+                      <p className="text-sm text-dim" style={{ marginTop: 2 }}>{b.purpose}</p>
                     </div>
                     {b.vehicleId && (
-                      <span style={{ padding: '4px 10px', background: 'rgba(16,185,129,0.15)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>
-                        {b.vehicleId.plate}
-                      </span>
+                      <span className="badge badge-success" style={{ fontWeight: 700 }}>{b.vehicleId.plate}</span>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '16px', fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: 16, fontSize: '0.8rem', marginBottom: 12 }} className="text-dim">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Clock size={13} /> {new Date(b.startTime).toLocaleDateString('vi-VN')}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <MapPin size={13} /> {b.requestor}
                     </div>
                   </div>
 
                   {b.status === 'assigned' && (
-                    <button onClick={() => { setActiveBooking(b); setStep('checkin'); }} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
+                    <button onClick={() => { setActiveBooking(b); setStep('checkin'); }} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: 12 }}>
                       Nhận lệnh & Check-in <ChevronRight size={18} />
                     </button>
                   )}
                   {b.status === 'ongoing' && (
-                    <button onClick={() => { setActiveBooking(b); setStep('checkout'); setMetrics({ ...metrics, startKm: String(b.startKm || '') }); }} style={{ width: '100%', justifyContent: 'center', padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--accent)', color: 'black', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button onClick={() => { setActiveBooking(b); setStep('checkout'); setMetrics({ ...metrics, startKm: String(b.startKm || '') }); }}
+                      className="btn" style={{ width: '100%', justifyContent: 'center', padding: 12, background: 'var(--accent)', color: 'white', border: 'none', fontWeight: 700 }}>
                       Chốt hành trình <ChevronRight size={18} />
                     </button>
                   )}
                   {b.status === 'completed' && b.startKm && b.endKm && (
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '0.8rem' }}>
-                      <span style={{ color: 'var(--text-dim)' }}>Km đi: <b>{b.startKm.toLocaleString()}</b></span>
-                      <span style={{ color: 'var(--text-dim)' }}>Km về: <b>{b.endKm.toLocaleString()}</b></span>
-                      <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Tổng: {(b.endKm - b.startKm).toLocaleString()} km</span>
+                    <div style={{ display: 'flex', gap: 16, fontSize: '0.82rem' }}>
+                      <span className="text-dim">Km đi: <b>{b.startKm.toLocaleString()}</b></span>
+                      <span className="text-dim">Km về: <b>{b.endKm.toLocaleString()}</b></span>
+                      <span style={{ color: 'var(--primary-600)', fontWeight: 700 }}>Tổng: {(b.endKm - b.startKm).toLocaleString()} km</span>
                     </div>
                   )}
                 </div>
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Check-in Form */}
       {step === 'checkin' && activeBooking && (
-        <div className="glass" style={{ padding: '24px', borderRadius: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={{ width: '44px', height: '44px', background: 'var(--primary)', borderRadius: '12px', display: 'grid', placeItems: 'center' }}>
-              <CheckCircle size={22} color="white" />
+        <div className="card animate-in" style={{ padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <div style={{ width: 44, height: 44, background: 'var(--primary-100)', borderRadius: 12, display: 'grid', placeItems: 'center' }}>
+              <CheckCircle size={22} color="var(--primary-600)" />
             </div>
             <div>
               <h3 style={{ fontWeight: 700 }}>{activeBooking.vehicleId?.plate}</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{activeBooking.destination}</p>
+              <p className="text-sm text-dim">{activeBooking.destination}</p>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '8px' }}>Chỉ số công tơ mét HIỆN TẠI (Km)</label>
-              <input type="number" value={metrics.startKm} onChange={e => setMetrics({ ...metrics, startKm: e.target.value })} style={inputStyle} placeholder="VD: 154954" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="form-group">
+              <label className="form-label">Chỉ số công tơ mét HIỆN TẠI (Km)</label>
+              <input type="number" value={metrics.startKm} onChange={e => setMetrics({ ...metrics, startKm: e.target.value })}
+                className="form-input" style={{ fontSize: '1.2rem', textAlign: 'center', padding: 14 }} placeholder="VD: 154954" />
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => { setStep('list'); setActiveBooking(null); }} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer' }}>Quay lại</button>
-              <button onClick={handleCheckin} disabled={!metrics.startKm} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '14px', opacity: metrics.startKm ? 1 : 0.5 }}>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => { setStep('list'); setActiveBooking(null); }} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center', padding: 14 }}>Quay lại</button>
+              <button onClick={handleCheckin} disabled={!metrics.startKm} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', padding: 14, opacity: metrics.startKm ? 1 : 0.5 }}>
                 Bắt Đầu Hành Trình
               </button>
             </div>
@@ -197,32 +235,40 @@ export default function DriverCheckInView({ vehicles, user }) {
 
       {/* Check-out Form */}
       {step === 'checkout' && activeBooking && (
-        <div className="glass" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--accent)' }}>
-          <h3 style={{ fontWeight: 700, marginBottom: '20px', color: 'var(--accent)' }}>Chốt Hành Trình — {activeBooking.vehicleId?.plate}</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '8px' }}>Chỉ số Km LÚC VỀ</label>
-              <input type="number" value={metrics.endKm} onChange={e => setMetrics({ ...metrics, endKm: e.target.value })} style={{ ...inputStyle, borderColor: 'var(--accent)' }} placeholder={`> ${activeBooking.startKm || '?'}`} />
+        <div className="card animate-in" style={{ padding: 24, borderColor: 'var(--accent)' }}>
+          <h3 style={{ fontWeight: 700, marginBottom: 20, color: '#b45309' }}>Chốt Hành Trình — {activeBooking.vehicleId?.plate}</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="form-group">
+              <label className="form-label">Chỉ số Km LÚC VỀ</label>
+              <input type="number" value={metrics.endKm} onChange={e => setMetrics({ ...metrics, endKm: e.target.value })}
+                className="form-input" style={{ fontSize: '1.2rem', textAlign: 'center', padding: 14, borderColor: 'var(--accent)' }}
+                placeholder={`> ${activeBooking.startKm || '?'}`} />
             </div>
             {isCrane(activeBooking) && (
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '8px' }}>Số giờ cẩu thực tế</label>
-                <input type="number" value={metrics.craneHours} onChange={e => setMetrics({ ...metrics, craneHours: e.target.value })} style={inputStyle} placeholder="VD: 5" />
+              <div className="form-group">
+                <label className="form-label">Số giờ cẩu thực tế</label>
+                <input type="number" value={metrics.craneHours} onChange={e => setMetrics({ ...metrics, craneHours: e.target.value })}
+                  className="form-input" style={{ textAlign: 'center' }} placeholder="VD: 5" />
               </div>
             )}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', cursor: 'pointer', border: '1px dashed var(--accent)' }}>
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: 14, background: 'var(--gray-50)', borderRadius: 'var(--radius)',
+              cursor: 'pointer', border: '1px dashed var(--accent)'
+            }}>
               <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
               <Camera size={20} color="var(--accent)" />
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)', flex: 1 }}>
+              <span className="text-sm text-dim" style={{ flex: 1 }}>
                 {uploadingPhoto ? 'Đang tải lên...' : metrics.endPhoto ? 'Đã tải lên (Nhấn để đổi ảnh)' : 'Chụp ảnh đồng hồ xác nhận'}
               </span>
             </label>
             {metrics.endPhoto && (
-              <img src={metrics.endPhoto} alt="Đồng hồ công tơ mét" style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '10px', border: '1px solid var(--border)' }} />
+              <img src={metrics.endPhoto} alt="Đồng hồ" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 'var(--radius)', border: '1px solid var(--gray-200)' }} />
             )}
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => { setStep('list'); setActiveBooking(null); }} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer' }}>Quay lại</button>
-              <button onClick={handleCheckout} disabled={!metrics.endKm} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: 'none', background: 'var(--accent)', color: 'black', fontWeight: 700, cursor: 'pointer', opacity: metrics.endKm ? 1 : 0.5 }}>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => { setStep('list'); setActiveBooking(null); }} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center', padding: 14 }}>Quay lại</button>
+              <button onClick={handleCheckout} disabled={!metrics.endKm}
+                className="btn" style={{ flex: 1, justifyContent: 'center', padding: 14, background: 'var(--accent)', color: 'white', border: 'none', fontWeight: 700, opacity: metrics.endKm ? 1 : 0.5 }}>
                 Chốt Sổ
               </button>
             </div>
@@ -232,12 +278,12 @@ export default function DriverCheckInView({ vehicles, user }) {
 
       {/* Success */}
       {step === 'success' && (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div style={{ width: '80px', height: '80px', background: 'rgba(16,185,129,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-            <CheckCircle size={40} color="var(--primary)" />
+        <div className="animate-in" style={{ textAlign: 'center', padding: '60px 0' }}>
+          <div style={{ width: 80, height: 80, background: 'var(--primary-100)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+            <CheckCircle size={40} color="var(--primary-600)" />
           </div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px' }}>Thành Công!</h2>
-          <p style={{ color: 'var(--text-dim)' }}>Dữ liệu đã được đồng bộ lên hệ thống.</p>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 8 }}>Thành Công!</h2>
+          <p className="text-dim">Dữ liệu đã được đồng bộ lên hệ thống.</p>
         </div>
       )}
     </div>

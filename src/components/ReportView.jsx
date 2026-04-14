@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 import { registerVietnameseFonts } from '../utils/pdfFonts';
 
 const API = 'http://localhost:5000/api';
@@ -9,14 +9,6 @@ const getToken = () => localStorage.getItem('token');
 const authFetch = (url, opts = {}) => fetch(url, {
   ...opts, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}`, ...opts.headers }
 });
-
-const removeAccents = (str) => {
-  if (!str) return '';
-  return str.normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/đ/g, 'd')
-            .replace(/Đ/g, 'D');
-};
 
 export default function ReportView({ vehicles }) {
   const now = new Date();
@@ -75,45 +67,22 @@ export default function ReportView({ vehicles }) {
       const doc = new jsPDF('landscape');
       await registerVietnameseFonts(doc);
       doc.setFont('Roboto', 'bold');
-      
       doc.setFontSize(13);
-      doc.text('CÔNG TY CỔ PHẦN C', 14, 18);
-      
+      doc.text('CÔNG TY ĐIỆN LỰC HÀ TĨNH', 14, 18);
       doc.setFontSize(15);
       doc.text(`BIÊN BẢN GHI CHỈ SỐ CÔNG TƠ MÉT THÁNG ${month} NĂM ${year}`, 148, 28, null, null, 'center');
 
       const cols = ['TT', 'Biển KS', 'Lái xe', 'Chỉ số đầu', 'Chỉ số cuối', 'Tổng (km)', 'Giờ cẩu', 'Ghi chú'];
       const rows = displayData.map(d => [
-        String(d.id || ''), 
-        String(d.plate || ''), 
-        String(d.driver || ''),
-        String(d.startKm || '0'),
-        String(d.endKm || '0'),
-        String(d.totalKm || '0'),
-        String(d.craneHours || '0'),
-        String(d.note || '')
+        String(d.id || ''), String(d.plate || ''), String(d.driver || ''),
+        String(d.startKm || '0'), String(d.endKm || '0'), String(d.totalKm || '0'),
+        String(d.craneHours || '0'), String(d.note || '')
       ]);
 
-      autoTable(doc, {
-        head: [cols], 
-        body: rows, 
-        startY: 36,
-        theme: 'grid',
-        headStyles: { 
-          fillColor: [16, 185, 129], 
-          textColor: 255, 
-          fontSize: 9, 
-          halign: 'center', 
-          valign: 'middle',
-          font: 'Roboto',
-          fontStyle: 'bold'
-        },
-        styles: { 
-          fontSize: 9, 
-          halign: 'center', 
-          cellPadding: 4, 
-          font: 'Roboto' 
-        },
+      doc.autoTable({
+        head: [cols], body: rows, startY: 36, theme: 'grid',
+        headStyles: { fillColor: [5, 150, 105], textColor: 255, fontSize: 9, halign: 'center', valign: 'middle', font: 'Roboto', fontStyle: 'bold' },
+        styles: { fontSize: 9, halign: 'center', cellPadding: 4, font: 'Roboto' },
         columnStyles: { 2: { halign: 'left' }, 7: { halign: 'left' } }
       });
 
@@ -132,123 +101,91 @@ export default function ReportView({ vehicles }) {
     }
   };
 
-  const selectStyle = {
-    padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)',
-    borderRadius: '8px', color: 'white', fontSize: '0.9rem', cursor: 'pointer'
-  };
-
   return (
-    <div className="page-container">
-      <header style={{ marginBottom: '32px', padding: '0 16px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Biên bản Chỉ số Công tơ mét</h1>
-          <p style={{ color: 'var(--text-dim)', marginTop: '4px', fontSize: '0.85rem' }}>Tổng hợp dữ liệu hành trình theo tháng / quý / năm.</p>
+    <div className="animate-in">
+      <div className="page-header">
+        <div>
+          <h1>Biên bản Chỉ số Công tơ mét</h1>
+          <p>Tổng hợp dữ liệu hành trình theo tháng / quý / năm.</p>
         </div>
-        
-        <div style={{ 
-          display: 'flex', 
-          gap: '12px', 
-          alignItems: 'center', 
-          flexWrap: 'wrap',
-          background: 'rgba(255,255,255,0.03)',
-          padding: '16px',
-          borderRadius: '12px',
-          border: '1px solid var(--border)'
-        }}>
-          <div style={{ display: 'flex', gap: '8px', flex: '1', minWidth: '200px' }}>
-            <select style={{ ...selectStyle, flex: 1 }} value={month} onChange={e => setMonth(Number(e.target.value))}>
-              {Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Tháng {i + 1}</option>)}
-            </select>
-            <select style={{ ...selectStyle, flex: 1 }} value={year} onChange={e => setYear(Number(e.target.value))}>
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flex: '2', minWidth: '280px' }}>
-            <button className="btn btn-primary" onClick={generateReport} disabled={generating} style={{ flex: 1, opacity: generating ? 0.6 : 1, justifyContent: 'center', fontSize: '0.85rem' }}>
-              <FileSpreadsheet size={18} /> {generating ? 'Đang...' : 'Tổng hợp dữ liệu'}
-            </button>
-            <button className="btn" onClick={generatePDF} style={{ flex: 1, background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)', justifyContent: 'center', fontSize: '0.85rem' }}>
-              <Download size={18} /> Xuất PDF
-            </button>
-          </div>
-        </div>
-      </header>
+      </div>
 
-      <div className="glass" style={{ margin: '0 16px', padding: '20px', overflowX: 'auto' }}>
-        <div className="hidden-mobile" style={{ width: '100%' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border)', minWidth: '900px' }}>
-            <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                {['TT', 'Biển KS', 'Họ tên lái xe', 'Chỉ số tháng trước', 'Chỉ số tháng này', 'Tổng số (km)', 'Tổng số giờ cẩu', 'Ghi chú'].map((h, i) => (
-                  <th key={i} style={{ padding: '12px 8px', border: '1px solid var(--border)', fontSize: '0.8rem', fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {displayData.map((row, i) => (
-                <tr key={i} style={{ textAlign: 'center' }}>
-                  <td style={{ padding: '10px 8px', border: '1px solid var(--border)', fontSize: '0.85rem' }}>{row.id}</td>
-                  <td style={{ padding: '10px 8px', border: '1px solid var(--border)', fontWeight: 700, fontSize: '0.85rem' }}>{row.plate}</td>
-                  <td style={{ padding: '10px 8px', border: '1px solid var(--border)', textAlign: 'left', fontSize: '0.85rem' }}>{row.driver}</td>
-                  <td style={{ padding: '10px 8px', border: '1px solid var(--border)', fontSize: '0.85rem' }}>{row.startKm ? row.startKm.toLocaleString() : '0'}</td>
-                  <td style={{ padding: '10px 8px', border: '1px solid var(--border)', fontSize: '0.85rem' }}>{row.endKm ? row.endKm.toLocaleString() : '0'}</td>
-                  <td style={{ padding: '10px 8px', border: '1px solid var(--border)', fontWeight: 700, color: row.totalKm > 0 ? 'var(--primary)' : 'var(--text-dim)', fontSize: '0.85rem' }}>
-                    {row.totalKm ? row.totalKm.toLocaleString() : '0'}
-                  </td>
-                  <td style={{ padding: '10px 8px', border: '1px solid var(--border)', fontWeight: 600, color: row.craneHours ? 'var(--accent)' : 'var(--text-dim)', fontSize: '0.85rem' }}>
-                    {row.craneHours ? `${row.craneHours} giờ` : ''}
-                  </td>
-                  <td style={{ padding: '10px 8px', border: '1px solid var(--border)', textAlign: 'left', fontSize: '0.8rem', color: 'var(--text-dim)' }}>{row.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="show-mobile mobile-card-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-          {displayData.map((row) => (
-            <div key={row.id} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed rgba(255,255,255,0.1)', paddingBottom: '10px', marginBottom: '10px' }}>
-                <div>
-                  <h4 style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-main)' }}>{row.plate}</h4>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{row.driver}</span>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Tổng số (km)</p>
-                  <p style={{ fontWeight: 700, fontSize: '1.1rem', color: row.totalKm > 0 ? 'var(--primary)' : 'var(--text-dim)' }}>
-                    {row.totalKm ? row.totalKm.toLocaleString() : '0'}
-                  </p>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.85rem' }}>
-                <div>
-                  <p style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Chỉ số đầu</p>
-                  <p style={{ fontWeight: 600 }}>{row.startKm ? row.startKm.toLocaleString() : '0'}</p>
-                </div>
-                <div>
-                  <p style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Chỉ số cuối</p>
-                  <p style={{ fontWeight: 600 }}>{row.endKm ? row.endKm.toLocaleString() : '0'}</p>
-                </div>
-              </div>
-              {row.craneHours > 0 && (
-                <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Giờ cẩu:</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent)' }}>{row.craneHours}h</span>
-                </div>
-              )}
+      {/* Controls */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-body">
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, flex: '1', minWidth: 200 }}>
+              <select className="form-input" value={month} onChange={e => setMonth(Number(e.target.value))} style={{ flex: 1 }}>
+                {Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Tháng {i + 1}</option>)}
+              </select>
+              <select className="form-input" value={year} onChange={e => setYear(Number(e.target.value))} style={{ flex: 1 }}>
+                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
             </div>
-          ))}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" onClick={generateReport} disabled={generating} style={{ opacity: generating ? 0.6 : 1 }}>
+                <FileSpreadsheet size={16} /> {generating ? 'Đang...' : 'Tổng hợp dữ liệu'}
+              </button>
+              <button className="btn btn-secondary" onClick={generatePDF} style={{ color: 'var(--info)' }}>
+                <Download size={16} /> Xuất PDF
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px', padding: '0 40px' }}>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontWeight: 600 }}>VAN PHONG CONG TY</p>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>(Ky va ghi ro ho ten)</p>
+      {/* Table */}
+      <div className="card">
+        <div className="card-header">
+          <h3>Biên bản tháng {month}/{year}</h3>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'center' }}>TT</th>
+                  <th>Biển KS</th>
+                  <th>Họ tên lái xe</th>
+                  <th style={{ textAlign: 'right' }}>Chỉ số tháng trước</th>
+                  <th style={{ textAlign: 'right' }}>Chỉ số tháng này</th>
+                  <th style={{ textAlign: 'right' }}>Tổng số (km)</th>
+                  <th style={{ textAlign: 'right' }}>Giờ cẩu</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayData.map((row) => (
+                  <tr key={row.id}>
+                    <td style={{ textAlign: 'center' }}>{row.id}</td>
+                    <td style={{ fontWeight: 700 }}>{row.plate}</td>
+                    <td>{row.driver}</td>
+                    <td style={{ textAlign: 'right' }}>{row.startKm ? row.startKm.toLocaleString() : '0'}</td>
+                    <td style={{ textAlign: 'right' }}>{row.endKm ? row.endKm.toLocaleString() : '0'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: row.totalKm > 0 ? 'var(--primary-600)' : 'var(--gray-400)' }}>
+                      {row.totalKm ? row.totalKm.toLocaleString() : '0'}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: row.craneHours ? 'var(--accent)' : 'var(--gray-400)' }}>
+                      {row.craneHours ? `${row.craneHours} giờ` : ''}
+                    </td>
+                    <td className="text-dim text-sm">{row.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontWeight: 600 }}>TO XE</p>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>(Ky va ghi ro ho ten)</p>
-          </div>
+        </div>
+      </div>
+
+      {/* Signature */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32, padding: '0 40px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p className="font-bold">VĂN PHÒNG CÔNG TY</p>
+          <p className="text-sm text-dim">(Ký và ghi rõ họ tên)</p>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <p className="font-bold">TỔ XE</p>
+          <p className="text-sm text-dim">(Ký và ghi rõ họ tên)</p>
         </div>
       </div>
     </div>

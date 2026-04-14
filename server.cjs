@@ -67,7 +67,10 @@ const vehicleSchema = new mongoose.Schema({
   insuranceExpiry: Date,
   lastMaintenanceDate: Date,
   lastMaintenanceKm: Number,
-  currentKm: Number
+  currentKm: Number,
+  gpsLat: Number,
+  gpsLng: Number,
+  lastGpsUpdate: Date
 });
 
 // 3. User (Accounts)
@@ -106,7 +109,13 @@ const bookingSchema = new mongoose.Schema({
   checkinLocation: String,
   checkoutLocation: String,
   pdfUrl: String,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  gpsTrack: [{
+    lat: Number,
+    lng: Number,
+    timestamp: { type: Date, default: Date.now },
+    speed: Number
+  }]
 });
 
 // 5. MonthlyLog (Biên bản chốt công tơ mét)
@@ -125,11 +134,27 @@ const monthlyLogSchema = new mongoose.Schema({
   lockedAt: Date
 });
 
+// 6. TrafficViolation (Phạt nguội)
+const trafficViolationSchema = new mongoose.Schema({
+  vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', required: true },
+  plate: { type: String, required: true },
+  violationDate: { type: Date, required: true },
+  description: { type: String, required: true },
+  amount: { type: Number, required: true },
+  location: String,
+  status: { type: String, enum: ['unpaid', 'paid', 'disputed'], default: 'unpaid' },
+  paidDate: Date,
+  evidenceUrl: String,
+  createdBy: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
 const Driver = mongoose.model('Driver', driverSchema);
 const Vehicle = mongoose.model('Vehicle', vehicleSchema);
 const User = mongoose.model('User', userSchema);
 const Booking = mongoose.model('Booking', bookingSchema);
 const MonthlyLog = mongoose.model('MonthlyLog', monthlyLogSchema);
+const TrafficViolation = mongoose.model('TrafficViolation', trafficViolationSchema);
 
 // =====================
 // AUTH MIDDLEWARE
@@ -389,6 +414,104 @@ app.post('/api/monthly-logs/generate', authMiddleware, roleMiddleware('admin', '
 });
 
 // =====================
+// GPS TRACKING
+// =====================
+app.put('/api/vehicles/:id/gps', authMiddleware, async (req, res) => {
+  try {
+    const { lat, lng, speed, bookingId } = req.body;
+    await Vehicle.findByIdAndUpdate(req.params.id, {
+      gpsLat: lat, gpsLng: lng, lastGpsUpdate: new Date()
+    });
+    if (bookingId) {
+      await Booking.findByIdAndUpdate(bookingId, {
+        $push: { gpsTrack: { lat, lng, timestamp: new Date(), speed: speed || 0 } }
+      });
+    }
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+app.get('/api/bookings/:id/track', authMiddleware, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id).select('gpsTrack vehicleId destination startTime');
+    res.json(booking);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// =====================
+// TRAFFIC VIOLATIONS
+// =====================
+app.get('/api/violations', async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.vehicleId) filter.vehicleId = req.query.vehicleId;
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.startDate || req.query.endDate) {
+      filter.violationDate = {};
+      if (req.query.startDate) filter.violationDate.$gte = new Date(req.query.startDate);
+      if (req.query.endDate) filter.violationDate.$lte = new Date(req.query.endDate);
+    }
+    const violations = await TrafficViolation.find(filter).populate('vehicleId').sort({ violationDate: -1 });
+    res.json(violations);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+app.post('/api/violations', authMiddleware, roleMiddleware('admin', 'team-lead', 'cvp'), async (req, res) => {
+  try {
+    const violation = new TrafficViolation({ ...req.body, createdBy: req.user.fullName });
+    const saved = await violation.save();
+    res.json(saved);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+app.put('/api/violations/:id', authMiddleware, roleMiddleware('admin', 'team-lead', 'cvp'), async (req, res) => {
+  try {
+    const violation = await TrafficViolation.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(violation);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+app.delete('/api/violations/:id', authMiddleware, roleMiddleware('admin'), async (req, res) => {
+  try {
+    await TrafficViolation.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// =====================
+// MAINTENANCE STATUS
+// =====================
+app.get('/api/vehicles/maintenance-status', async (req, res) => {
+  try {
+    const vehicles = await Vehicle.find().populate('driverId');
+    const now = new Date();
+    const result = vehicles.map(v => {
+      const regStatus = !v.registrationExpiry ? 'unknown' : v.registrationExpiry < now ? 'expired' :
+        v.registrationExpiry < new Date(now.getTime() + 30*86400000) ? 'expiring30' :
+        v.registrationExpiry < new Date(now.getTime() + 60*86400000) ? 'expiring60' : 'ok';
+      const insStatus = !v.insuranceExpiry ? 'unknown' : v.insuranceExpiry < now ? 'expired' :
+        v.insuranceExpiry < new Date(now.getTime() + 30*86400000) ? 'expiring30' :
+        v.insuranceExpiry < new Date(now.getTime() + 60*86400000) ? 'expiring60' : 'ok';
+      const kmSinceMaintenance = v.lastMaintenanceKm ? (v.currentKm || 0) - v.lastMaintenanceKm : null;
+      const maintenanceDue = kmSinceMaintenance !== null && kmSinceMaintenance >= 5000;
+      return {
+        ...v.toObject(),
+        registrationStatus: regStatus,
+        insuranceStatus: insStatus,
+        kmSinceMaintenance,
+        maintenanceDue,
+        nextMaintenanceKm: v.lastMaintenanceKm ? v.lastMaintenanceKm + 5000 : null
+      };
+    });
+    result.sort((a, b) => {
+      const priority = { expired: 0, expiring30: 1, expiring60: 2, unknown: 3, ok: 4 };
+      return (priority[a.registrationStatus] || 4) - (priority[b.registrationStatus] || 4);
+    });
+    res.json(result);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// =====================
 // DASHBOARD ROUTES
 // =====================
 app.get('/api/dashboard/stats', async (req, res) => {
@@ -397,7 +520,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const inUse = await Vehicle.countDocuments({ status: 'in-use' });
     const maintenance = await Vehicle.countDocuments({ status: 'maintenance' });
     const pendingBookings = await Booking.countDocuments({ status: 'pending' });
-    res.json({ totalVehicles, inUse, maintenance, pendingBookings });
+    const unpaidViolations = await TrafficViolation.countDocuments({ status: 'unpaid' });
+    res.json({ totalVehicles, inUse, maintenance, pendingBookings, unpaidViolations });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
@@ -416,15 +540,40 @@ app.get('/api/dashboard/today', async (req, res) => {
 
 app.get('/api/dashboard/alerts', async (req, res) => {
   try {
-    const in30Days = new Date();
-    in30Days.setDate(in30Days.getDate() + 30);
-    const alerts = await Vehicle.find({
-      $or: [
-        { registrationExpiry: { $lte: in30Days, $exists: true, $ne: null } },
-        { insuranceExpiry: { $lte: in30Days, $exists: true, $ne: null } }
-      ]
-    });
-    res.json(alerts);
+    const now = new Date();
+    const in30Days = new Date(now.getTime() + 30 * 86400000);
+    const in60Days = new Date(now.getTime() + 60 * 86400000);
+    const allVehicles = await Vehicle.find({ $or: [
+      { registrationExpiry: { $lte: in60Days, $exists: true, $ne: null } },
+      { insuranceExpiry: { $lte: in60Days, $exists: true, $ne: null } }
+    ]});
+    const expired = allVehicles.filter(v =>
+      (v.registrationExpiry && v.registrationExpiry < now) ||
+      (v.insuranceExpiry && v.insuranceExpiry < now)
+    );
+    const expiring30 = allVehicles.filter(v =>
+      !expired.includes(v) && (
+        (v.registrationExpiry && v.registrationExpiry < in30Days) ||
+        (v.insuranceExpiry && v.insuranceExpiry < in30Days)
+      )
+    );
+    const expiring60 = allVehicles.filter(v =>
+      !expired.includes(v) && !expiring30.includes(v)
+    );
+    const maintenanceDue = await Vehicle.find().then(vs =>
+      vs.filter(v => v.lastMaintenanceKm && v.currentKm && (v.currentKm - v.lastMaintenanceKm) >= 5000)
+    );
+    res.json({ expired, expiring30, expiring60, maintenanceDue });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+app.get('/api/dashboard/violations-summary', async (req, res) => {
+  try {
+    const unpaid = await TrafficViolation.find({ status: 'unpaid' });
+    const unpaidCount = unpaid.length;
+    const unpaidTotal = unpaid.reduce((sum, v) => sum + (v.amount || 0), 0);
+    const totalCount = await TrafficViolation.countDocuments();
+    res.json({ unpaidCount, unpaidTotal, totalCount });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
@@ -447,6 +596,7 @@ app.post('/api/seed', async (req, res) => {
     await User.deleteMany({});
     await Booking.deleteMany({});
     await MonthlyLog.deleteMany({});
+    await TrafficViolation.deleteMany({});
 
     // Create 9 Drivers
     const driversData = [
@@ -462,31 +612,43 @@ app.post('/api/seed', async (req, res) => {
     ];
     const drivers = await Driver.insertMany(driversData);
 
-    // Create 20 Vehicles (matching Excel data exactly)
+    // Create 20 Vehicles with registration/insurance/maintenance/GPS data
+    const now = new Date();
+    const daysFromNow = (d) => new Date(now.getTime() + d * 86400000);
+    const daysAgo = (d) => new Date(now.getTime() - d * 86400000);
+    // Ha Tinh city center approx 18.34, 105.91 - spread vehicles around
     const vehiclesData = [
-      { plate: '38B-011.44', model: 'Nissan', type: 'Xe khách 16 chỗ', year: 2016, driverId: drivers[0]._id, currentKm: 152644, imageUrl: '/images/cars/z7285194480815_b3ea4c242c2adfde97345edbab39249d.jpg' },
-      { plate: '38A-131.40', model: 'Toyota Camry 2.4', type: 'Xe con', year: 2003, driverId: drivers[0]._id, currentKm: 506216, imageUrl: '/images/cars/z7288635310169_7251cc1d2955ec9cd017b75daffc94fa.jpg' },
-      { plate: '38C-153.27', model: 'Mipec INTERNATIONAL', type: 'Xe nâng Hotline', year: 2020, driverId: drivers[1]._id, currentKm: 29522, imageUrl: '/images/cars/z7285195044378_758f6424e67c8d9f7c9d76a00e2a61c1.jpg' },
-      { plate: '38C-130.04', model: 'Triton', type: 'Xe bán tải', year: 2011, driverId: drivers[1]._id, currentKm: 326546, imageUrl: '/images/cars/z7285195296847_1e8640f0439080085b49e28f9b4e7df7.jpg' },
-      { plate: '38C-078.26', model: 'Hino', type: 'Xe tải cẩu 5 tấn gắn gàu', year: 2015, driverId: drivers[1]._id, currentKm: 41820, imageUrl: '/images/cars/z7285194665856_3a3767182f5c334f2ea656e065028752.jpg' },
-      { plate: '38N-0587', model: 'Toyota', type: 'Xe con', year: 2008, driverId: drivers[2]._id, currentKm: 409026, imageUrl: '/images/cars/z7285194752282_3f7ec2f16dbf6e57b96cbceb9f7f6db7.jpg' },
-      { plate: '38C-218.07', model: 'Mitsubishi Triton', type: 'Xe bán tải', year: 2023, driverId: drivers[2]._id, currentKm: 10494, imageUrl: '/images/cars/z7285194822308_78075c44554f8bf5c62276f966c6c8fc.jpg' },
-      { plate: '38A-131.55', model: 'Toyota LANDCRUISER', type: 'Xe con', year: 2004, driverId: drivers[3]._id, currentKm: 706217, imageUrl: '/images/cars/z7285194822332_ce2b5df47d197a612df883ad06b75560.jpg' },
-      { plate: '38A-050.89', model: 'Toyota PRADO', type: 'Xe con', year: 2014, driverId: drivers[3]._id, currentKm: 458044, imageUrl: '/images/cars/z7285194866035_e44201ae2d610ce665a5a2104dc421be.jpg' },
-      { plate: '38A-066.72', model: 'Toyota Fortuner', type: 'Xe con', year: 2013, driverId: drivers[4]._id, currentKm: 234553, imageUrl: '/images/cars/z7285194866170_7dc0898402e78766386c2a826d367e82.jpg' },
-      { plate: '38A-163.87', model: 'Toyota Camry 2.4', type: 'Xe con', year: 2010, driverId: drivers[5]._id, currentKm: 349633, imageUrl: '/images/cars/z7285195509372_8cec06ee59dbc7b85df61e421ace7339.jpg' },
-      { plate: '38C-095.53', model: 'Nissan', type: 'Xe thang', year: 2016, driverId: drivers[5]._id, currentKm: 6029 },
-      { plate: '38C-018.86', model: 'Ford Transit', type: 'Xe khách 16 chỗ', year: 2024, driverId: drivers[5]._id, currentKm: 9022, imageUrl: '/images/cars/z7288634505072_0f2c207d691cec52178597d44c857f4a.jpg' },
-      { plate: '38N-4732', model: 'Toyota HIACE', type: 'Xe khách 16 chỗ', year: 2010, driverId: drivers[6]._id, currentKm: 334796, imageUrl: '/images/cars/z7288634703030_38ea95848b33946b46390ff03ad9c55f.jpg' },
-      { plate: '38A-562.21', model: 'Mitsubishi', type: 'Xe con', year: 2023, driverId: drivers[6]._id, currentKm: 34465 },
-      { plate: '38C-057.01', model: 'HiNo', type: 'Xe tải cẩu 5 tấn', year: 2014, driverId: drivers[6]._id, currentKm: 75912, imageUrl: '/images/cars/z7288634978755_712e06977007a3ececfaa2dd186cacdc.jpg' },
-      { plate: '38A-131.47', model: 'Toyota LANDCRUISER', type: 'Xe con', year: 2000, driverId: drivers[7]._id, currentKm: 661177, imageUrl: '/images/cars/z7288635360657_ed43d07dd6a9b2fc93f37c1f2ff0da9f.jpg' },
-      { plate: '38C-088.54', model: 'Toyota HILUX', type: 'Xe bán tải', year: 2016, driverId: drivers[8]._id, currentKm: 41925 },
-      // Extra 2 from biên bản (38C-128.60 and 38C-081.53)
-      { plate: '38C-128.60', model: 'Xe tải', type: 'Xe tải', year: 2018, driverId: null, currentKm: 243995 },
-      { plate: '38C-081.53', model: 'Xe tải', type: 'Xe tải', year: 2017, driverId: null, currentKm: 161087 }
+      { plate: '38B-011.44', model: 'Nissan', type: 'Xe khách 16 chỗ', year: 2016, driverId: drivers[0]._id, currentKm: 152644, imageUrl: '/images/cars/z7285194480815_b3ea4c242c2adfde97345edbab39249d.jpg', registrationExpiry: daysFromNow(120), insuranceExpiry: daysFromNow(200), lastMaintenanceDate: daysAgo(60), lastMaintenanceKm: 149000, gpsLat: 18.3420, gpsLng: 105.9050, lastGpsUpdate: daysAgo(0) },
+      { plate: '38A-131.40', model: 'Toyota Camry 2.4', type: 'Xe con', year: 2003, driverId: drivers[0]._id, currentKm: 506216, imageUrl: '/images/cars/z7288635310169_7251cc1d2955ec9cd017b75daffc94fa.jpg', registrationExpiry: daysFromNow(-10), insuranceExpiry: daysFromNow(90), lastMaintenanceDate: daysAgo(120), lastMaintenanceKm: 500000, gpsLat: 18.3380, gpsLng: 105.9120, lastGpsUpdate: daysAgo(1) },
+      { plate: '38C-153.27', model: 'Mipec INTERNATIONAL', type: 'Xe nâng Hotline', year: 2020, driverId: drivers[1]._id, currentKm: 29522, imageUrl: '/images/cars/z7285195044378_758f6424e67c8d9f7c9d76a00e2a61c1.jpg', registrationExpiry: daysFromNow(45), insuranceExpiry: daysFromNow(180), lastMaintenanceDate: daysAgo(30), lastMaintenanceKm: 27000, gpsLat: 18.3550, gpsLng: 105.8900, lastGpsUpdate: daysAgo(0) },
+      { plate: '38C-130.04', model: 'Triton', type: 'Xe bán tải', year: 2011, driverId: drivers[1]._id, currentKm: 326546, imageUrl: '/images/cars/z7285195296847_1e8640f0439080085b49e28f9b4e7df7.jpg', registrationExpiry: daysFromNow(20), insuranceExpiry: daysFromNow(15), lastMaintenanceDate: daysAgo(90), lastMaintenanceKm: 321000, gpsLat: 18.3300, gpsLng: 105.9200, lastGpsUpdate: daysAgo(0) },
+      { plate: '38C-078.26', model: 'Hino', type: 'Xe tải cẩu 5 tấn gắn gàu', year: 2015, driverId: drivers[1]._id, currentKm: 41820, imageUrl: '/images/cars/z7285194665856_3a3767182f5c334f2ea656e065028752.jpg', registrationExpiry: daysFromNow(200), insuranceExpiry: daysFromNow(200), lastMaintenanceDate: daysAgo(45), lastMaintenanceKm: 38000, gpsLat: 18.3480, gpsLng: 105.8800, lastGpsUpdate: daysAgo(2) },
+      { plate: '38N-0587', model: 'Toyota', type: 'Xe con', year: 2008, driverId: drivers[2]._id, currentKm: 409026, imageUrl: '/images/cars/z7285194752282_3f7ec2f16dbf6e57b96cbceb9f7f6db7.jpg', registrationExpiry: daysFromNow(60), insuranceExpiry: daysFromNow(-5), lastMaintenanceDate: daysAgo(150), lastMaintenanceKm: 403000, gpsLat: 18.3350, gpsLng: 105.9150, lastGpsUpdate: daysAgo(0) },
+      { plate: '38C-218.07', model: 'Mitsubishi Triton', type: 'Xe bán tải', year: 2023, driverId: drivers[2]._id, currentKm: 10494, imageUrl: '/images/cars/z7285194822308_78075c44554f8bf5c62276f966c6c8fc.jpg', registrationExpiry: daysFromNow(300), insuranceExpiry: daysFromNow(300), lastMaintenanceDate: daysAgo(20), lastMaintenanceKm: 9500, gpsLat: 18.3400, gpsLng: 105.9000, lastGpsUpdate: daysAgo(0) },
+      { plate: '38A-131.55', model: 'Toyota LANDCRUISER', type: 'Xe con', year: 2004, driverId: drivers[3]._id, currentKm: 706217, imageUrl: '/images/cars/z7285194822332_ce2b5df47d197a612df883ad06b75560.jpg', registrationExpiry: daysFromNow(90), insuranceExpiry: daysFromNow(90), lastMaintenanceDate: daysAgo(30), lastMaintenanceKm: 704000, gpsLat: 18.3600, gpsLng: 105.9300, lastGpsUpdate: daysAgo(0) },
+      { plate: '38A-050.89', model: 'Toyota PRADO', type: 'Xe con', year: 2014, driverId: drivers[3]._id, currentKm: 458044, imageUrl: '/images/cars/z7285194866035_e44201ae2d610ce665a5a2104dc421be.jpg', registrationExpiry: daysFromNow(150), insuranceExpiry: daysFromNow(150), lastMaintenanceDate: daysAgo(60), lastMaintenanceKm: 455000, gpsLat: 18.3250, gpsLng: 105.9400, lastGpsUpdate: daysAgo(3) },
+      { plate: '38A-066.72', model: 'Toyota Fortuner', type: 'Xe con', year: 2013, driverId: drivers[4]._id, currentKm: 234553, imageUrl: '/images/cars/z7285194866170_7dc0898402e78766386c2a826d367e82.jpg', registrationExpiry: daysFromNow(-20), insuranceExpiry: daysFromNow(50), lastMaintenanceDate: daysAgo(100), lastMaintenanceKm: 228000, gpsLat: 18.3500, gpsLng: 105.9100, lastGpsUpdate: daysAgo(0) },
+      { plate: '38A-163.87', model: 'Toyota Camry 2.4', type: 'Xe con', year: 2010, driverId: drivers[5]._id, currentKm: 349633, imageUrl: '/images/cars/z7285195509372_8cec06ee59dbc7b85df61e421ace7339.jpg', registrationExpiry: daysFromNow(180), insuranceExpiry: daysFromNow(180), lastMaintenanceDate: daysAgo(40), lastMaintenanceKm: 347000, gpsLat: 18.3450, gpsLng: 105.9080, lastGpsUpdate: daysAgo(0) },
+      { plate: '38C-095.53', model: 'Nissan', type: 'Xe thang', year: 2016, driverId: drivers[5]._id, currentKm: 6029, registrationExpiry: daysFromNow(25), insuranceExpiry: daysFromNow(100), lastMaintenanceDate: daysAgo(15), lastMaintenanceKm: 5500 },
+      { plate: '38C-018.86', model: 'Ford Transit', type: 'Xe khách 16 chỗ', year: 2024, driverId: drivers[5]._id, currentKm: 9022, imageUrl: '/images/cars/z7288634505072_0f2c207d691cec52178597d44c857f4a.jpg', registrationExpiry: daysFromNow(350), insuranceExpiry: daysFromNow(350), lastMaintenanceDate: daysAgo(10), lastMaintenanceKm: 8000, gpsLat: 18.3380, gpsLng: 105.8950, lastGpsUpdate: daysAgo(0) },
+      { plate: '38N-4732', model: 'Toyota HIACE', type: 'Xe khách 16 chỗ', year: 2010, driverId: drivers[6]._id, currentKm: 334796, imageUrl: '/images/cars/z7288634703030_38ea95848b33946b46390ff03ad9c55f.jpg', registrationExpiry: daysFromNow(80), insuranceExpiry: daysFromNow(80), lastMaintenanceDate: daysAgo(70), lastMaintenanceKm: 330000, gpsLat: 18.3320, gpsLng: 105.9250, lastGpsUpdate: daysAgo(0) },
+      { plate: '38A-562.21', model: 'Mitsubishi', type: 'Xe con', year: 2023, driverId: drivers[6]._id, currentKm: 34465, registrationExpiry: daysFromNow(250), insuranceExpiry: daysFromNow(250), lastMaintenanceDate: daysAgo(25), lastMaintenanceKm: 32000, gpsLat: 18.3550, gpsLng: 105.9350, lastGpsUpdate: daysAgo(0) },
+      { plate: '38C-057.01', model: 'HiNo', type: 'Xe tải cẩu 5 tấn', year: 2014, driverId: drivers[6]._id, currentKm: 75912, imageUrl: '/images/cars/z7288634978755_712e06977007a3ececfaa2dd186cacdc.jpg', registrationExpiry: daysFromNow(100), insuranceExpiry: daysFromNow(100), lastMaintenanceDate: daysAgo(55), lastMaintenanceKm: 72000, gpsLat: 18.3200, gpsLng: 105.8850, lastGpsUpdate: daysAgo(1) },
+      { plate: '38A-131.47', model: 'Toyota LANDCRUISER', type: 'Xe con', year: 2000, driverId: drivers[7]._id, currentKm: 661177, imageUrl: '/images/cars/z7288635360657_ed43d07dd6a9b2fc93f37c1f2ff0da9f.jpg', registrationExpiry: daysFromNow(10), insuranceExpiry: daysFromNow(40), lastMaintenanceDate: daysAgo(80), lastMaintenanceKm: 655000, gpsLat: 18.3650, gpsLng: 105.9000, lastGpsUpdate: daysAgo(0) },
+      { plate: '38C-088.54', model: 'Toyota HILUX', type: 'Xe bán tải', year: 2016, driverId: drivers[8]._id, currentKm: 41925, registrationExpiry: daysFromNow(55), insuranceExpiry: daysFromNow(55), lastMaintenanceDate: daysAgo(35), lastMaintenanceKm: 39000, gpsLat: 18.3100, gpsLng: 105.9100, lastGpsUpdate: daysAgo(0) },
+      { plate: '38C-128.60', model: 'Xe tải', type: 'Xe tải', year: 2018, driverId: null, currentKm: 243995, registrationExpiry: daysFromNow(70), insuranceExpiry: daysFromNow(70), lastMaintenanceDate: daysAgo(90), lastMaintenanceKm: 238000 },
+      { plate: '38C-081.53', model: 'Xe tải', type: 'Xe tải', year: 2017, driverId: null, currentKm: 161087, registrationExpiry: daysFromNow(45), insuranceExpiry: daysFromNow(30), lastMaintenanceDate: daysAgo(110), lastMaintenanceKm: 155000 }
     ];
     const vehicles = await Vehicle.insertMany(vehiclesData);
+
+    // Create sample traffic violations
+    await TrafficViolation.insertMany([
+      { vehicleId: vehicles[1]._id, plate: '38A-131.40', violationDate: daysAgo(15), description: 'Vuot den do tai nga tu Nguyen Du - Tran Phu', amount: 4000000, location: 'TP Ha Tinh', status: 'unpaid', createdBy: 'Admin' },
+      { vehicleId: vehicles[5]._id, plate: '38N-0587', violationDate: daysAgo(30), description: 'Di qua toc do cho phep 20km/h', amount: 3000000, location: 'QL1A, Cam Xuyen', status: 'unpaid', createdBy: 'Admin' },
+      { vehicleId: vehicles[9]._id, plate: '38A-066.72', violationDate: daysAgo(45), description: 'Do xe sai quy dinh tai khu vuc cam', amount: 1500000, location: 'TP Ha Tinh', status: 'paid', paidDate: daysAgo(40), createdBy: 'Admin' },
+      { vehicleId: vehicles[3]._id, plate: '38C-130.04', violationDate: daysAgo(5), description: 'Khong co giay phep luu hanh', amount: 5000000, location: 'Ky Anh', status: 'unpaid', createdBy: 'Admin' },
+      { vehicleId: vehicles[7]._id, plate: '38A-131.55', violationDate: daysAgo(60), description: 'Loi hong den hau', amount: 800000, location: 'Huong Son', status: 'paid', paidDate: daysAgo(55), createdBy: 'Admin' },
+    ]);
 
     // Create User accounts
     const hashedPassword = await bcrypt.hash('123456', 10);
